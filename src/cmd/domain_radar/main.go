@@ -101,7 +101,7 @@ func main() {
 		req := tavily.SearchRequest{
 			Query:             topic,
 			Topic:             "news",
-			MaxResults:        5,
+			MaxResults:        2,
 			StartDate:         startDate,
 			EndDate:           endDate,
 			IncludeRawContent: false,
@@ -171,8 +171,27 @@ func main() {
 		return articles[i].Score > articles[j].Score
 	})
 
-	// 10. 生成 HTML
-	if err := generateHTML(articles); err != nil {
+	// 10. 深度解读 (如果配置了用户画像，且有文章)
+	var deepAnalysis string
+	if cfg.UserPersona != "" && len(articles) > 0 {
+		logger.Log.Info("正在生成全局深度解读报告...")
+		// 拼接摘要
+		var sb strings.Builder
+		for i, article := range articles {
+			sb.WriteString(fmt.Sprintf("%d. 标题：%s\n   分类：%s\n   摘要：%s\n   评分：%d\n\n",
+				i+1, article.Title, article.Category, article.Summary, article.Score))
+		}
+		analysis, err := deepInterpretReport(ctx, chatModel, sb.String(), cfg.UserPersona, limiter)
+		if err != nil {
+			logger.Log.Errorf("全局深度解读失败: %v", err)
+		} else {
+			deepAnalysis = analysis
+			logger.Log.Info("全局深度解读报告生成完成")
+		}
+	}
+
+	// 11. 生成 HTML
+	if err := generateHTML(articles, deepAnalysis); err != nil {
 		logger.Log.Fatalf("生成 HTML 失败: %v", err)
 	}
 
@@ -271,8 +290,86 @@ func summarizeContent(ctx context.Context, cm model.ChatModel, content string, t
 	return nil, fmt.Errorf("max retries exceeded: %v", lastErr)
 }
 
+// deepInterpretReport 全局深度解读报告
+func deepInterpretReport(ctx context.Context, cm model.ChatModel, content string, userPersona string, limiter *rate.Limiter) (string, error) {
+	maxRetries := 3
+	baseDelay := 2 * time.Second
+	var lastErr error
+
+	promptTpl := `Role: 资深技术顾问与个人发展战略专家
+核心能力：具备极敏锐的技术嗅觉与宏观视野，擅长从碎片化的新闻资讯中提炼出对特定用户最具价值的趋势判断、机会挖掘与风险预警。
+
+Context
+用户画像：%s
+核心诉求：基于这一组新闻快讯，结合我的个人情况，进行全局性的深度分析。不要逐条点评新闻，而是要综合分析这些信息背后反映的宏观趋势，并给出针对性的建议。
+
+Instructions
+请执行以下分析步骤：
+
+1. 🔍 **核心趋势洞察 (Macro Trends)**
+   - 综合所有新闻，识别出当前技术或行业的主要风向（例如：某个技术栈的崛起/衰落、政策监管的收紧/放松、新的商业模式等）。
+   - 结合用户画像，指出这些趋势对"我"的职业护城河有何具体影响（正面或负面）。
+
+2. 🚀 **机遇挖掘 (Opportunities)**
+   - **职业发展**：有哪些新技术、新工具或新领域值得我现在开始投入精力学习？
+   - **资产/副业**：是否有值得关注的投资方向或独立开发者机会？
+   - 请务必具体，避免泛泛而谈（例如：不要只说"关注AI"，要说"关注AI在xx场景下的落地应用"）。
+
+3. 🛡️ **风险预警 (Risks)**
+   - **技术债风险**：我当前的技术栈是否面临被边缘化的风险？
+   - **行业风险**：是否有政策或市场变化可能影响我的就业稳定性？
+   - 给出具体的"避坑"建议。
+
+4. 💡 **行动指南 (Actionable Advice)**
+   - 给出 3 条在这个时间节点，我最应该做的具体行动建议（Action Items）。
+   - 建议需具备实操性，符合"低成本试错"或"高杠杆收益"原则。
+
+注意：
+- 语气要客观、专业且真诚，像一位值得信赖的导师。
+- 重点关注与用户画像高度相关的内容，忽略无关的噪音。
+- 输出格式支持 Markdown。
+
+待分析的新闻列表：
+%s`
+
+	for i := 0; i <= maxRetries; i++ {
+		if err := limiter.Wait(ctx); err != nil {
+			return "", fmt.Errorf("limiter wait error: %w", err)
+		}
+
+		messages := []*schema.Message{
+			{
+				Role:    schema.User,
+				Content: fmt.Sprintf(promptTpl, userPersona, content),
+			},
+		}
+
+		resp, err := cm.Generate(ctx, messages)
+		if err != nil {
+			if strings.Contains(err.Error(), "429") || strings.Contains(strings.ToLower(err.Error()), "too many requests") {
+				lastErr = err
+				if i < maxRetries {
+					delay := baseDelay * time.Duration(1<<i)
+					logger.Log.Warnf("触发 429 限流 (深度解读)，等待 %v 后重试 (%d/%d)...", delay, i+1, maxRetries)
+					select {
+					case <-ctx.Done():
+						return "", ctx.Err()
+					case <-time.After(delay):
+						continue
+					}
+				}
+			}
+			return "", err
+		}
+
+		return strings.TrimSpace(resp.Content), nil
+	}
+
+	return "", fmt.Errorf("max retries exceeded: %v", lastErr)
+}
+
 // generateHTML 渲染模板
-func generateHTML(articles []Article) error {
+func generateHTML(articles []Article, deepAnalysis string) error {
 	const htmlTpl = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -392,6 +489,17 @@ func generateHTML(articles []Article) error {
             font-size: 1rem;
             border-left: 4px solid var(--primary-color);
         }
+        .deep-analysis {
+            background-color: #f0fdf4;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            color: #166534;
+            font-size: 0.95rem;
+            border-left: 4px solid #22c55e;
+            white-space: pre-wrap;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
         .footer {
             text-align: center;
             margin-top: 40px;
@@ -416,6 +524,11 @@ func generateHTML(articles []Article) error {
             <div class="date-info">{{ .Date }} • 精选 {{ .Count }} 篇优质内容</div>
         </header>
         
+        {{if .DeepAnalysis}}
+        <div class="deep-analysis"><strong>💡 全局深度解读：</strong>
+{{.DeepAnalysis}}</div>
+        {{end}}
+
         {{range .Articles}}
         <article class="article-card">
             <div class="card-header">
@@ -457,13 +570,15 @@ func generateHTML(articles []Article) error {
 	defer f.Close()
 
 	data := struct {
-		Date     string
-		Count    int
-		Articles []Article
+		Date         string
+		Count        int
+		Articles     []Article
+		DeepAnalysis string
 	}{
-		Date:     time.Now().Format("2006-01-02"),
-		Count:    len(articles),
-		Articles: articles,
+		Date:         time.Now().Format("2006-01-02"),
+		Count:        len(articles),
+		Articles:     articles,
+		DeepAnalysis: deepAnalysis,
 	}
 
 	return t.Execute(f, data)
