@@ -2,73 +2,91 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
 	"os"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/cloudwego/eino-ext/components/model/openai"
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 	"github.com/go-shiori/go-readability"
 	"github.com/mmcdole/gofeed"
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
-)
+	"golang.org/x/time/rate"
 
-// 配置部分：替换为 DeepSeek 或 Qwen 的 API 信息
-const (
-	// 这里以 DeepSeek 为例 (DeepSeek 兼容 OpenAI 协议)
-	LLMBaseURL = "https://api.xiaomimimo.com/v1"                       // 或者 Qwen 的地址
-	LLMAPIKey  = "sk-cnq3lcmg346ea14lcfve0crv5negsxt4qg17kror2msfi0td" // 你的 API Key
-	LLMModel   = "mimo-v2-flash"                                       // 模型名称
+	"github.com/iWorld-y/news_agent/internal/config"
+	"github.com/iWorld-y/news_agent/internal/logger"
 )
 
 // Article 结构体用于存储处理后的文章
 type Article struct {
-	Title   string
-	Link    string
-	Source  string
-	Summary string
-	PubDate string
+	Title    string
+	Link     string
+	Source   string
+	Summary  string
+	PubDate  string
+	Category string // 新增：文章分类
+	Score    int    // 新增：重要性评分
+}
+
+// LLMResponse 用于解析 LLM 返回的 JSON
+type LLMResponse struct {
+	Summary  string `json:"summary"`
+	Category string `json:"category"`
+	Score    int    `json:"score"`
 }
 
 func main() {
-	// 1. 输入 RSS 列表
-	rssLinks := []string{
-		"https://www.ruanyifeng.com/blog/atom.xml",          // 阮一峰博客
-		"https://sspai.com/feed",                            // 少数派
-		"https://tech.meituan.com/feed",                     // 美团技术团队
-		"https://plink.anyfeeder.com/zaobao/realtime/china", // 《联合早报》-中港台-即时
-		"https://36kr.com/feed",                             // 36氪
-		"https://rss.huxiu.com/",                            // 虎嗅
+	// 1. 加载配置
+	cfg, err := config.LoadConfig("config.yaml")
+	if err != nil {
+		log.Fatalf("无法加载配置文件: %v", err)
 	}
+
+	// 2. 初始化日志
+	if err = logger.InitLogger(cfg.Log.Level, cfg.Log.File); err != nil {
+		log.Fatalf("无法初始化日志: %v", err)
+	}
+	logger.Log.Info("启动新闻代理...")
 
 	ctx := context.Background()
 
-	// 2. 初始化 LLM
-	llm, err := openai.New(
-		openai.WithBaseURL(LLMBaseURL),
-		openai.WithToken(LLMAPIKey),
-		openai.WithModel(LLMModel),
-	)
+	// 3. 初始化 LLM
+	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		BaseURL: cfg.LLM.BaseURL,
+		APIKey:  cfg.LLM.APIKey,
+		Model:   cfg.LLM.Model,
+	})
 	if err != nil {
-		log.Fatalf("LLM 初始化失败: %v", err)
+		logger.Log.Fatalf("LLM 初始化失败: %v", err)
 	}
+
+	// 4. 初始化限流器
+	// Limit 设置为 RPM/60，Burst 设置为 QPS
+	limit := rate.Limit(float64(cfg.Concurrency.RPM) / 60.0)
+	burst := cfg.Concurrency.QPS
+	limiter := rate.NewLimiter(limit, burst)
+	logger.Log.Infof("限流器已配置: Limit=%.2f req/s, Burst=%d", limit, burst)
 
 	var articles []Article
 	var wg sync.WaitGroup
 	var mu sync.Mutex // 保护 articles 切片
 
-	// 3. 并发处理 RSS
+	// 5. 并发处理 RSS
 	fp := gofeed.NewParser()
-	for _, url := range rssLinks {
+	for _, url := range cfg.RSSLinks {
 		feed, err := fp.ParseURL(url)
 		if err != nil {
-			log.Printf("解析 RSS 失败 [%s]: %v", url, err)
+			logger.Log.Errorf("解析 RSS 失败 [%s]: %v", url, err)
 			continue
 		}
 
-		fmt.Printf("正在处理源: %s\n", feed.Title)
+		logger.Log.Infof("正在处理源: %s", feed.Title)
 
 		// 只处理最近 24 小时的文章
 		for _, item := range feed.Items {
@@ -81,81 +99,114 @@ func main() {
 			go func(item *gofeed.Item, sourceName string) {
 				defer wg.Done()
 
-				// 4. 获取并清洗正文
-				// RSS item.Description 通常太短，我们需要去抓取原文
-				// 使用 readability 提取正文内容
+				// 6. 获取并清洗正文
 				content, err := fetchAndCleanContent(item.Link)
 				if err != nil {
 					// 如果抓取失败，回退到使用 RSS 里的摘要
 					content = item.Description
-					log.Printf("原文抓取失败，使用摘要 [%s]: %v", item.Title, err)
+					logger.Log.Warnf("原文抓取失败，使用摘要 [%s]: %v", item.Title, err)
 				}
 
-				// 截断内容以防止超出 Token 限制 (简单粗暴截断，生产环境需更精细)
+				// 截断内容以防止超出 Token 限制
 				if len(content) > 6000 {
 					content = content[:6000]
 				}
 
-				// 5. 调用 LLM 生成总结
-				summary, err := summarizeContent(ctx, llm, content)
+				// 7. 调用 LLM 生成总结、分类和评分
+				llmResp, err := summarizeContent(ctx, chatModel, content, limiter)
 				if err != nil {
-					log.Printf("总结失败 [%s]: %v", item.Title, err)
+					logger.Log.Errorf("总结失败 [%s]: %v", item.Title, err)
 					return
 				}
 
 				mu.Lock()
 				articles = append(articles, Article{
-					Title:   item.Title,
-					Link:    item.Link,
-					Source:  sourceName,
-					Summary: summary,
-					PubDate: item.Published,
+					Title:    item.Title,
+					Link:     item.Link,
+					Source:   sourceName,
+					Summary:  llmResp.Summary,
+					PubDate:  item.Published,
+					Category: llmResp.Category,
+					Score:    llmResp.Score,
 				})
 				mu.Unlock()
-				fmt.Printf("已完成: %s\n", item.Title)
+				logger.Log.Infof("已完成: %s (Score: %d)", item.Title, llmResp.Score)
 			}(item, feed.Title)
 		}
 	}
 
 	wg.Wait()
 
-	// 6. 生成 HTML
+	// 8. 排序：按重要性从高到低
+	sort.Slice(articles, func(i, j int) bool {
+		return articles[i].Score > articles[j].Score
+	})
+
+	// 9. 生成 HTML
 	if err := generateHTML(articles); err != nil {
-		log.Fatalf("生成 HTML 失败: %v", err)
+		logger.Log.Fatalf("生成 HTML 失败: %v", err)
 	}
 
-	fmt.Println("✅ 早报生成完毕: morning_report.html")
+	logger.Log.Info("✅ 早报生成完毕: morning_report.html")
 }
 
 // fetchAndCleanContent 抓取 URL 并提取核心文本
 func fetchAndCleanContent(url string) (string, error) {
-	// 这里的 timeout 设置很重要，防止挂起
 	article, err := readability.FromURL(url, 30*time.Second)
 	if err != nil {
 		return "", err
 	}
-	// 返回纯文本内容
 	return article.TextContent, nil
 }
 
 // summarizeContent 调用 LLM
-func summarizeContent(ctx context.Context, llm llms.Model, content string) (string, error) {
-	prompt := fmt.Sprintf(`
-你是一个专业的技术新闻编辑。请阅读以下文章内容，生成一份简明扼要的中文摘要（100-200字）。
-要求：
-1. 提取核心观点、新技术或关键事件。
-2. 语言通俗易懂，适合快速阅读。
-3. 输出格式直接是纯文本，不要 markdown 标题。
+func summarizeContent(ctx context.Context, cm model.ChatModel, content string, limiter *rate.Limiter) (*LLMResponse, error) {
+	// 等待限流令牌
+	if err := limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("limiter wait error: %w", err)
+	}
+
+	prompt := `你是一个专业的技术新闻编辑。请阅读用户提供的文章内容，生成一份简明扼要的中文摘要，并进行分类和评分。
+
+请务必严格按照以下 JSON 格式返回，不要包含任何 markdown 标记（如 '''json）：
+{
+	"summary": "中文摘要（100-200字），提取核心观点、新技术或关键事件。",
+	"category": "文章分类（例如：人工智能、前端开发、后端架构、云计算、行业资讯、其他）",
+	"score": 8
+}
+评分说明：score 为 1-10 的整数，10分为非常重要，1分为不重要。
 
 文章内容：
-%s
-`, content)
+%s`
 
-	completion, err := llms.GenerateFromSinglePrompt(ctx, llm, prompt)
-	if err != nil {
-		return "", err
+	messages := []*schema.Message{
+		{
+			Role:    schema.System,
+			Content: "你是一个 JSON 生成器。请只输出 JSON 字符串，不要输出任何其他内容。",
+		},
+		{
+			Role:    schema.User,
+			Content: fmt.Sprintf(prompt, content),
+		},
 	}
-	return completion, nil
+
+	resp, err := cm.Generate(ctx, messages)
+	if err != nil {
+		return nil, err
+	}
+
+	// 清理可能的 markdown 标记
+	cleanContent := strings.TrimSpace(resp.Content)
+	cleanContent = strings.TrimPrefix(cleanContent, "```json")
+	cleanContent = strings.TrimPrefix(cleanContent, "```")
+	cleanContent = strings.TrimSuffix(cleanContent, "```")
+
+	var llmResp LLMResponse
+	if err := json.Unmarshal([]byte(cleanContent), &llmResp); err != nil {
+		return nil, fmt.Errorf("json unmarshal error: %w, content: %s", err, cleanContent)
+	}
+
+	return &llmResp, nil
 }
 
 // generateHTML 渲染模板
@@ -172,6 +223,9 @@ func generateHTML(articles []Article) error {
         .title { font-size: 1.2em; font-weight: bold; color: #2c3e50; text-decoration: none; }
         .meta { font-size: 0.9em; color: #7f8c8d; margin-bottom: 10px; }
         .summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-right: 5px; color: white; }
+        .tag-category { background-color: #3498db; }
+        .tag-score { background-color: #e74c3c; }
         h1 { text-align: center; color: #2c3e50; }
     </style>
 </head>
@@ -182,7 +236,11 @@ func generateHTML(articles []Article) error {
     {{range .Articles}}
     <div class="article">
         <a href="{{.Link}}" class="title" target="_blank">{{.Title}}</a>
-        <div class="meta">来源: {{.Source}} | 时间: {{.PubDate}}</div>
+        <div class="meta">
+            <span class="tag tag-category">{{.Category}}</span>
+            <span class="tag tag-score">评分: {{.Score}}</span>
+            来源: {{.Source}} | 时间: {{.PubDate}}
+        </div>
         <div class="summary">{{.Summary}}</div>
     </div>
     {{end}}
