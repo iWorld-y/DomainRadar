@@ -18,9 +18,9 @@ import (
 	"github.com/go-shiori/go-readability"
 	"golang.org/x/time/rate"
 
-	"github.com/iWorld-y/news_agent/internal/config"
-	"github.com/iWorld-y/news_agent/internal/logger"
-	"github.com/iWorld-y/news_agent/internal/tavily"
+	"github.com/iWorld-y/domain_radar/src/internal/config"
+	"github.com/iWorld-y/domain_radar/src/internal/logger"
+	"github.com/iWorld-y/domain_radar/src/internal/tavily"
 )
 
 // Article 结构体用于存储处理后的文章

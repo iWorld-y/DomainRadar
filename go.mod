@@ -1,4 +1,4 @@
-module github.com/iWorld-y/news_agent
+module github.com/iWorld-y/domain_radar
 
 go 1.25.4
 
