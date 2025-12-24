@@ -147,7 +147,7 @@ func main() {
 		logger.Log.Fatalf("生成 HTML 失败: %v", err)
 	}
 
-	logger.Log.Info("✅ 早报生成完毕: morning_report.html")
+	logger.Log.Info("✅ 早报生成完毕: index.html")
 }
 
 // fetchAndCleanContent 抓取 URL 并提取核心文本
@@ -161,12 +161,18 @@ func fetchAndCleanContent(url string) (string, error) {
 
 // summarizeContent 调用 LLM
 func summarizeContent(ctx context.Context, cm model.ChatModel, content string, limiter *rate.Limiter) (*LLMResponse, error) {
-	// 等待限流令牌
-	if err := limiter.Wait(ctx); err != nil {
-		return nil, fmt.Errorf("limiter wait error: %w", err)
-	}
+	maxRetries := 3
+	baseDelay := 2 * time.Second
 
-	prompt := `你是一个专业的技术新闻编辑。请阅读用户提供的文章内容，生成一份简明扼要的中文摘要，并进行分类和评分。
+	var lastErr error
+
+	for i := 0; i <= maxRetries; i++ {
+		// 等待限流令牌
+		if err := limiter.Wait(ctx); err != nil {
+			return nil, fmt.Errorf("limiter wait error: %w", err)
+		}
+
+		prompt := `你是一个专业的技术新闻编辑。请阅读用户提供的文章内容，生成一份简明扼要的中文摘要，并进行分类和评分。
 
 请务必严格按照以下 JSON 格式返回，不要包含任何 markdown 标记（如 '''json）：
 {
@@ -179,34 +185,51 @@ func summarizeContent(ctx context.Context, cm model.ChatModel, content string, l
 文章内容：
 %s`
 
-	messages := []*schema.Message{
-		{
-			Role:    schema.System,
-			Content: "你是一个 JSON 生成器。请只输出 JSON 字符串，不要输出任何其他内容。",
-		},
-		{
-			Role:    schema.User,
-			Content: fmt.Sprintf(prompt, content),
-		},
+		messages := []*schema.Message{
+			{
+				Role:    schema.System,
+				Content: "你是一个 JSON 生成器。请只输出 JSON 字符串，不要输出任何其他内容。",
+			},
+			{
+				Role:    schema.User,
+				Content: fmt.Sprintf(prompt, content),
+			},
+		}
+
+		resp, err := cm.Generate(ctx, messages)
+		if err != nil {
+			// 检查是否是 429 错误
+			if strings.Contains(err.Error(), "429") || strings.Contains(strings.ToLower(err.Error()), "too many requests") {
+				lastErr = err
+				if i < maxRetries {
+					delay := baseDelay * time.Duration(1<<i) // 指数退避
+					logger.Log.Warnf("触发 429 限流，等待 %v 后重试 (%d/%d)...", delay, i+1, maxRetries)
+					select {
+					case <-ctx.Done():
+						return nil, ctx.Err()
+					case <-time.After(delay):
+						continue // 重试
+					}
+				}
+			}
+			return nil, err
+		}
+
+		// 清理可能的 markdown 标记
+		cleanContent := strings.TrimSpace(resp.Content)
+		cleanContent = strings.TrimPrefix(cleanContent, "```json")
+		cleanContent = strings.TrimPrefix(cleanContent, "```")
+		cleanContent = strings.TrimSuffix(cleanContent, "```")
+
+		var llmResp LLMResponse
+		if err := json.Unmarshal([]byte(cleanContent), &llmResp); err != nil {
+			return nil, fmt.Errorf("json unmarshal error: %w, content: %s", err, cleanContent)
+		}
+
+		return &llmResp, nil
 	}
 
-	resp, err := cm.Generate(ctx, messages)
-	if err != nil {
-		return nil, err
-	}
-
-	// 清理可能的 markdown 标记
-	cleanContent := strings.TrimSpace(resp.Content)
-	cleanContent = strings.TrimPrefix(cleanContent, "```json")
-	cleanContent = strings.TrimPrefix(cleanContent, "```")
-	cleanContent = strings.TrimSuffix(cleanContent, "```")
-
-	var llmResp LLMResponse
-	if err := json.Unmarshal([]byte(cleanContent), &llmResp); err != nil {
-		return nil, fmt.Errorf("json unmarshal error: %w, content: %s", err, cleanContent)
-	}
-
-	return &llmResp, nil
+	return nil, fmt.Errorf("max retries exceeded: %v", lastErr)
 }
 
 // generateHTML 渲染模板
@@ -252,7 +275,7 @@ func generateHTML(articles []Article) error {
 		return err
 	}
 
-	f, err := os.Create("morning_report.html")
+	f, err := os.Create("index.html")
 	if err != nil {
 		return err
 	}
