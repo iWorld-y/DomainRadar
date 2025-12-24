@@ -11,7 +11,7 @@ type Config struct {
 	LLM          LLMConfig         `yaml:"llm"`
 	TavilyAPIKey string            `yaml:"tavily_api_key"`
 	UserPersona  string            `yaml:"user_persona"`
-	Topics       []string          `yaml:"topics"`
+	Domains      []string          `yaml:"domains"`
 	Log          LogConfig         `yaml:"log"`
 	Concurrency  ConcurrencyConfig `yaml:"concurrency"`
 }
