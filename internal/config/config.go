@@ -8,10 +8,11 @@ import (
 
 // Config 项目配置结构体
 type Config struct {
-	LLM         LLMConfig         `yaml:"llm"`
-	RSSLinks    []string          `yaml:"rss_links"`
-	Log         LogConfig         `yaml:"log"`
-	Concurrency ConcurrencyConfig `yaml:"concurrency"`
+	LLM          LLMConfig         `yaml:"llm"`
+	TavilyAPIKey string            `yaml:"tavily_api_key"`
+	Topics       []string          `yaml:"topics"`
+	Log          LogConfig         `yaml:"log"`
+	Concurrency  ConcurrencyConfig `yaml:"concurrency"`
 }
 
 // LLMConfig LLM 相关配置

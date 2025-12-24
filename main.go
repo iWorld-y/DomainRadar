@@ -16,11 +16,11 @@ import (
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	"github.com/go-shiori/go-readability"
-	"github.com/mmcdole/gofeed"
 	"golang.org/x/time/rate"
 
 	"github.com/iWorld-y/news_agent/internal/config"
 	"github.com/iWorld-y/news_agent/internal/logger"
+	"github.com/iWorld-y/news_agent/internal/tavily"
 )
 
 // Article 结构体用于存储处理后的文章
@@ -36,6 +36,7 @@ type Article struct {
 
 // LLMResponse 用于解析 LLM 返回的 JSON
 type LLMResponse struct {
+	TitleZh  string `json:"title_zh"` // 新增：中文标题
 	Summary  string `json:"summary"`
 	Category string `json:"category"`
 	Score    int    `json:"score"`
@@ -46,6 +47,14 @@ func main() {
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
 		log.Fatalf("无法加载配置文件: %v", err)
+	}
+
+	// 验证配置
+	if cfg.TavilyAPIKey == "" {
+		log.Fatal("配置错误: 未设置 tavily_api_key")
+	}
+	if len(cfg.Topics) == 0 {
+		log.Fatal("配置错误: 未设置感兴趣的话题 (topics)")
 	}
 
 	// 2. 初始化日志
@@ -77,34 +86,48 @@ func main() {
 	var wg sync.WaitGroup
 	var mu sync.Mutex // 保护 articles 切片
 
-	// 5. 并发处理 RSS
-	fp := gofeed.NewParser()
-	for _, url := range cfg.RSSLinks {
-		feed, err := fp.ParseURL(url)
+	// 5. 初始化 Tavily 客户端
+	tavilyClient := tavily.NewClient(cfg.TavilyAPIKey)
+
+	// 计算日期范围 (最近 3 天)
+	now := time.Now()
+	endDate := now.Format(time.DateOnly)
+	startDate := now.AddDate(0, 0, -3).Format(time.DateOnly)
+
+	// 6. 遍历话题进行搜索
+	for _, topic := range cfg.Topics {
+		logger.Log.Infof("正在搜索话题: %s", topic)
+
+		req := tavily.SearchRequest{
+			Query:             topic,
+			Topic:             "news",
+			MaxResults:        5,
+			StartDate:         startDate,
+			EndDate:           endDate,
+			IncludeRawContent: false,
+		}
+
+		resp, err := tavilyClient.Search(req)
 		if err != nil {
-			logger.Log.Errorf("解析 RSS 失败 [%s]: %v", url, err)
+			logger.Log.Errorf("搜索话题失败 [%s]: %v", topic, err)
 			continue
 		}
 
-		logger.Log.Infof("正在处理源: %s", feed.Title)
-
-		// 只处理最近 24 小时的文章
-		for _, item := range feed.Items {
-			// 如果没有发布时间，默认处理；如果有，判断是否是今天
-			if item.PublishedParsed != nil && time.Since(*item.PublishedParsed) > 24*time.Hour {
-				continue
-			}
-
+		for _, item := range resp.Results {
 			wg.Add(1)
-			go func(item *gofeed.Item, sourceName string) {
+			go func(item tavily.SearchResult, topic string) {
 				defer wg.Done()
 
-				// 6. 获取并清洗正文
-				content, err := fetchAndCleanContent(item.Link)
-				if err != nil {
-					// 如果抓取失败，回退到使用 RSS 里的摘要
-					content = item.Description
-					logger.Log.Warnf("原文抓取失败，使用摘要 [%s]: %v", item.Title, err)
+				// 7. 获取并清洗正文
+				// 优先使用 Tavily 返回的内容，如果太短则尝试抓取
+				content := item.Content
+				if len(content) < 200 {
+					fetchedContent, err := fetchAndCleanContent(item.URL)
+					if err == nil && len(fetchedContent) > len(content) {
+						content = fetchedContent
+					} else if err != nil {
+						logger.Log.Warnf("原文抓取失败，使用 Tavily 摘要 [%s]: %v", item.Title, err)
+					}
 				}
 
 				// 截断内容以防止超出 Token 限制
@@ -112,37 +135,43 @@ func main() {
 					content = content[:6000]
 				}
 
-				// 7. 调用 LLM 生成总结、分类和评分
-				llmResp, err := summarizeContent(ctx, chatModel, content, limiter)
+				// 8. 调用 LLM 生成总结、分类和评分
+				llmResp, err := summarizeContent(ctx, chatModel, content, item.Title, limiter)
 				if err != nil {
 					logger.Log.Errorf("总结失败 [%s]: %v", item.Title, err)
 					return
 				}
 
+				// 如果 LLM 返回了中文标题且不为空，则使用中文标题
+				finalTitle := item.Title
+				if llmResp.TitleZh != "" {
+					finalTitle = llmResp.TitleZh
+				}
+
 				mu.Lock()
 				articles = append(articles, Article{
-					Title:    item.Title,
-					Link:     item.Link,
-					Source:   sourceName,
+					Title:    finalTitle,
+					Link:     item.URL,
+					Source:   topic, // 使用话题作为来源，或者使用 item.Domain (如果 API 返回)
 					Summary:  llmResp.Summary,
-					PubDate:  item.Published,
+					PubDate:  item.PublishedDate,
 					Category: llmResp.Category,
 					Score:    llmResp.Score,
 				})
 				mu.Unlock()
-				logger.Log.Infof("已完成: %s (Score: %d)", item.Title, llmResp.Score)
-			}(item, feed.Title)
+				logger.Log.Infof("已完成: %s (Score: %d)", finalTitle, llmResp.Score)
+			}(item, topic)
 		}
 	}
 
 	wg.Wait()
 
-	// 8. 排序：按重要性从高到低
+	// 9. 排序：按重要性从高到低
 	sort.Slice(articles, func(i, j int) bool {
 		return articles[i].Score > articles[j].Score
 	})
 
-	// 9. 生成 HTML
+	// 10. 生成 HTML
 	if err := generateHTML(articles); err != nil {
 		logger.Log.Fatalf("生成 HTML 失败: %v", err)
 	}
@@ -160,7 +189,7 @@ func fetchAndCleanContent(url string) (string, error) {
 }
 
 // summarizeContent 调用 LLM
-func summarizeContent(ctx context.Context, cm model.ChatModel, content string, limiter *rate.Limiter) (*LLMResponse, error) {
+func summarizeContent(ctx context.Context, cm model.ChatModel, content string, title string, limiter *rate.Limiter) (*LLMResponse, error) {
 	maxRetries := 3
 	baseDelay := 2 * time.Second
 
@@ -172,15 +201,20 @@ func summarizeContent(ctx context.Context, cm model.ChatModel, content string, l
 			return nil, fmt.Errorf("limiter wait error: %w", err)
 		}
 
-		prompt := `你是一个专业的技术新闻编辑。请阅读用户提供的文章内容，生成一份简明扼要的中文摘要，并进行分类和评分。
+		prompt := `你是一个专业的技术新闻编辑。请阅读用户提供的文章内容和标题，生成一份简明扼要的中文摘要，并进行分类和评分。
+如果原标题是英文，请将其翻译为中文；如果原标题已经是中文，则保持原样或进行适当优化。
 
 请务必严格按照以下 JSON 格式返回，不要包含任何 markdown 标记（如 '''json）：
 {
+	"title_zh": "中文标题（如果原标题是英文则翻译，否则优化或保留）",
 	"summary": "中文摘要（100-200字），提取核心观点、新技术或关键事件。",
 	"category": "文章分类（例如：人工智能、前端开发、后端架构、云计算、行业资讯、其他）",
 	"score": 8
 }
 评分说明：score 为 1-10 的整数，10分为非常重要，1分为不重要。
+
+文章标题：
+%s
 
 文章内容：
 %s`
@@ -192,7 +226,7 @@ func summarizeContent(ctx context.Context, cm model.ChatModel, content string, l
 			},
 			{
 				Role:    schema.User,
-				Content: fmt.Sprintf(prompt, content),
+				Content: fmt.Sprintf(prompt, title, content),
 			},
 		}
 
@@ -223,7 +257,12 @@ func summarizeContent(ctx context.Context, cm model.ChatModel, content string, l
 
 		var llmResp LLMResponse
 		if err := json.Unmarshal([]byte(cleanContent), &llmResp); err != nil {
-			return nil, fmt.Errorf("json unmarshal error: %w, content: %s", err, cleanContent)
+			lastErr = fmt.Errorf("json unmarshal error: %w, content: %s", err, cleanContent)
+			if i < maxRetries {
+				logger.Log.Warnf("JSON 解析失败，重试 (%d/%d): %v", i+1, maxRetries, lastErr)
+				continue // 重试
+			}
+			return nil, lastErr
 		}
 
 		return &llmResp, nil
@@ -239,7 +278,7 @@ func generateHTML(articles []Article) error {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>AI 每日早报</title>
+    <title>领域雷达</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
         .article { border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
@@ -253,7 +292,7 @@ func generateHTML(articles []Article) error {
     </style>
 </head>
 <body>
-    <h1>☕️ AI 每日早报</h1>
+    <h1>☕️ 领域雷达</h1>
     <p style="text-align:center; color:#666;">{{ .Date }} • 共 {{ .Count }} 篇文章</p>
     
     {{range .Articles}}
