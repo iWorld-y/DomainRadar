@@ -15,7 +15,8 @@ build:
 	@echo "正在编译项目..."
 	@mkdir -p $(OUTPUT_DIR)
 	@go build -o $(OUTPUT_DIR)/$(APP_NAME) $(SRC)
-	@cp config.yaml $(OUTPUT_DIR)/
+	@mkdir -p $(OUTPUT_DIR)/configs
+	@cp configs/config.yaml $(OUTPUT_DIR)/configs/
 	@echo "编译完成，输出目录: $(OUTPUT_DIR)"
 
 run: build

@@ -52,7 +52,7 @@ type DeepAnalysisResult struct {
 
 func main() {
 	// 1. 加载配置
-	cfg, err := config.LoadConfig("config.yaml")
+	cfg, err := config.LoadConfig("configs/config.yaml")
 	if err != nil {
 		log.Fatalf("无法加载配置文件: %v", err)
 	}
