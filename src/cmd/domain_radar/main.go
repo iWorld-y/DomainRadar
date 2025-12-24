@@ -621,7 +621,7 @@ func generateHTML(articles []Article, deepAnalysis *DeepAnalysisResult) error {
             <div class="analysis-header">💡 全局深度解读</div>
             <div class="analysis-grid">
                 <div class="analysis-section full-width section-trends">
-                    <h3>🔍 核心趋势洞察</h3>
+                    <h3>🔍 核心趋势洞察</h3> 
                     <div class="markdown-content" id="render-trends"></div>
                     <div style="display:none" id="raw-trends">{{.DeepAnalysis.MacroTrends}}</div>
                 </div>
