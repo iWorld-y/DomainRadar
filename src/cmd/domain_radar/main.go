@@ -275,37 +275,173 @@ func summarizeContent(ctx context.Context, cm model.ChatModel, content string, t
 func generateHTML(articles []Article) error {
 	const htmlTpl = `
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>领域雷达</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>领域雷达 | 每日精选</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
-        .article { border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
-        .title { font-size: 1.2em; font-weight: bold; color: #2c3e50; text-decoration: none; }
-        .meta { font-size: 0.9em; color: #7f8c8d; margin-bottom: 10px; }
-        .summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db; }
-        .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-right: 5px; color: white; }
-        .tag-category { background-color: #3498db; }
-        .tag-score { background-color: #e74c3c; }
-        h1 { text-align: center; color: #2c3e50; }
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px 0;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: var(--text-main);
+            margin: 0 0 10px 0;
+            letter-spacing: -0.025em;
+        }
+        .date-info {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        .article-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--border-color);
+        }
+        .article-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 16px;
+        }
+        .title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            line-height: 1.4;
+            flex: 1;
+        }
+        .title:hover {
+            color: var(--primary-color);
+        }
+        .score-badge {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+        .score-high {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .tag {
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+            background-color: #f1f5f9;
+            color: var(--text-secondary);
+        }
+        .tag-category {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+        .summary {
+            background-color: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            color: #334155;
+            font-size: 1rem;
+            border-left: 4px solid var(--primary-color);
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        @media (max-width: 600px) {
+            .card-header {
+                flex-direction: column-reverse;
+                gap: 8px;
+            }
+            .score-badge {
+                align-self: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>☕️ 领域雷达</h1>
-    <p style="text-align:center; color:#666;">{{ .Date }} • 共 {{ .Count }} 篇文章</p>
-    
-    {{range .Articles}}
-    <div class="article">
-        <a href="{{.Link}}" class="title" target="_blank">{{.Title}}</a>
-        <div class="meta">
-            <span class="tag tag-category">{{.Category}}</span>
-            <span class="tag tag-score">评分: {{.Score}}</span>
-            来源: {{.Source}} | 时间: {{.PubDate}}
+    <div class="container">
+        <header>
+            <h1>☕️ 领域雷达</h1>
+            <div class="date-info">{{ .Date }} • 精选 {{ .Count }} 篇优质内容</div>
+        </header>
+        
+        {{range .Articles}}
+        <article class="article-card">
+            <div class="card-header">
+                <a href="{{.Link}}" class="title" target="_blank">{{.Title}}</a>
+                <div class="score-badge {{if ge .Score 8}}score-high{{end}}">
+                    Score: {{.Score}}
+                </div>
+            </div>
+            
+            <div class="meta-row">
+                <span class="tag tag-category">{{.Category}}</span>
+                <span>来源: {{.Source}}</span>
+                <span>•</span>
+                <span>{{.PubDate}}</span>
+            </div>
+            
+            <div class="summary">
+                {{.Summary}}
+            </div>
+        </article>
+        {{end}}
+
+        <div class="footer">
+            Generated by Domain Radar
         </div>
-        <div class="summary">{{.Summary}}</div>
     </div>
-    {{end}}
 </body>
 </html>`
 
