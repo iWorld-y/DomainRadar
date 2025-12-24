@@ -42,6 +42,14 @@ type LLMResponse struct {
 	Score    int    `json:"score"`
 }
 
+// DeepAnalysisResult 用于解析全局深度解读的 JSON
+type DeepAnalysisResult struct {
+	MacroTrends   string   `json:"macro_trends"`
+	Opportunities string   `json:"opportunities"`
+	Risks         string   `json:"risks"`
+	ActionGuides  []string `json:"action_guides"`
+}
+
 func main() {
 	// 1. 加载配置
 	cfg, err := config.LoadConfig("config.yaml")
@@ -172,14 +180,14 @@ func main() {
 	})
 
 	// 10. 深度解读 (如果配置了用户画像，且有文章)
-	var deepAnalysis string
+	var deepAnalysis *DeepAnalysisResult
 	if cfg.UserPersona != "" && len(articles) > 0 {
 		logger.Log.Info("正在生成全局深度解读报告...")
 		// 拼接摘要
 		var sb strings.Builder
 		for i, article := range articles {
-			sb.WriteString(fmt.Sprintf("%d. 标题：%s\n   分类：%s\n   摘要：%s\n   评分：%d\n\n",
-				i+1, article.Title, article.Category, article.Summary, article.Score))
+			fmt.Fprintf(&sb, "%d. 标题：%s\n   分类：%s\n   摘要：%s\n   评分：%d\n\n",
+				i+1, article.Title, article.Category, article.Summary, article.Score)
 		}
 		analysis, err := deepInterpretReport(ctx, chatModel, sb.String(), cfg.UserPersona, limiter)
 		if err != nil {
@@ -291,7 +299,7 @@ func summarizeContent(ctx context.Context, cm model.ChatModel, content string, t
 }
 
 // deepInterpretReport 全局深度解读报告
-func deepInterpretReport(ctx context.Context, cm model.ChatModel, content string, userPersona string, limiter *rate.Limiter) (string, error) {
+func deepInterpretReport(ctx context.Context, cm model.ChatModel, content string, userPersona string, limiter *rate.Limiter) (*DeepAnalysisResult, error) {
 	maxRetries := 3
 	baseDelay := 2 * time.Second
 	var lastErr error
@@ -304,7 +312,7 @@ Context
 核心诉求：基于这一组新闻快讯，结合我的个人情况，进行全局性的深度分析。不要逐条点评新闻，而是要综合分析这些信息背后反映的宏观趋势，并给出针对性的建议。
 
 Instructions
-请执行以下分析步骤：
+请执行以下分析步骤，并严格按照 JSON 格式输出：
 
 1. 🔍 **核心趋势洞察 (Macro Trends)**
    - 综合所有新闻，识别出当前技术或行业的主要风向（例如：某个技术栈的崛起/衰落、政策监管的收紧/放松、新的商业模式等）。
@@ -324,20 +332,37 @@ Instructions
    - 给出 3 条在这个时间节点，我最应该做的具体行动建议（Action Items）。
    - 建议需具备实操性，符合"低成本试错"或"高杠杆收益"原则。
 
+输出格式要求：
+请务必严格按照以下 JSON 格式返回，不要包含任何 markdown 标记（如 '''json）或其他开场白/结束语：
+{
+    "macro_trends": "Markdown格式的核心趋势洞察内容...",
+    "opportunities": "Markdown格式的机遇挖掘内容...",
+    "risks": "Markdown格式的风险预警内容...",
+    "action_guides": [
+        "行动建议1",
+        "行动建议2",
+        "行动建议3"
+    ]
+}
+
 注意：
+- JSON 中的字符串字段支持 Markdown 格式（如 **加粗**）。
 - 语气要客观、专业且真诚，像一位值得信赖的导师。
 - 重点关注与用户画像高度相关的内容，忽略无关的噪音。
-- 输出格式支持 Markdown。
 
 待分析的新闻列表：
 %s`
 
 	for i := 0; i <= maxRetries; i++ {
 		if err := limiter.Wait(ctx); err != nil {
-			return "", fmt.Errorf("limiter wait error: %w", err)
+			return nil, fmt.Errorf("limiter wait error: %w", err)
 		}
 
 		messages := []*schema.Message{
+			{
+				Role:    schema.System,
+				Content: "你是一个 JSON 生成器。请只输出 JSON 字符串，不要输出任何其他内容。",
+			},
 			{
 				Role:    schema.User,
 				Content: fmt.Sprintf(promptTpl, userPersona, content),
@@ -353,23 +378,38 @@ Instructions
 					logger.Log.Warnf("触发 429 限流 (深度解读)，等待 %v 后重试 (%d/%d)...", delay, i+1, maxRetries)
 					select {
 					case <-ctx.Done():
-						return "", ctx.Err()
+						return nil, ctx.Err()
 					case <-time.After(delay):
 						continue
 					}
 				}
 			}
-			return "", err
+			return nil, err
 		}
 
-		return strings.TrimSpace(resp.Content), nil
+		cleanContent := strings.TrimSpace(resp.Content)
+		cleanContent = strings.TrimPrefix(cleanContent, "```json")
+		cleanContent = strings.TrimPrefix(cleanContent, "```")
+		cleanContent = strings.TrimSuffix(cleanContent, "```")
+
+		var result DeepAnalysisResult
+		if err := json.Unmarshal([]byte(cleanContent), &result); err != nil {
+			lastErr = fmt.Errorf("json unmarshal error: %w, content: %s", err, cleanContent)
+			if i < maxRetries {
+				logger.Log.Warnf("深度解读 JSON 解析失败，重试 (%d/%d): %v", i+1, maxRetries, lastErr)
+				continue
+			}
+			return nil, lastErr
+		}
+
+		return &result, nil
 	}
 
-	return "", fmt.Errorf("max retries exceeded: %v", lastErr)
+	return nil, fmt.Errorf("max retries exceeded: %v", lastErr)
 }
 
 // generateHTML 渲染模板
-func generateHTML(articles []Article, deepAnalysis string) error {
+func generateHTML(articles []Article, deepAnalysis *DeepAnalysisResult) error {
 	const htmlTpl = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -377,6 +417,7 @@ func generateHTML(articles []Article, deepAnalysis string) error {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>领域雷达 | 每日精选</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
             --primary-color: #2563eb;
@@ -387,6 +428,8 @@ func generateHTML(articles []Article, deepAnalysis string) error {
             --border-color: #e2e8f0;
             --accent-red: #ef4444;
             --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-purple: #a855f7;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -490,16 +533,65 @@ func generateHTML(articles []Article, deepAnalysis string) error {
             border-left: 4px solid var(--primary-color);
         }
         .deep-analysis {
-            background-color: #f0fdf4;
-            padding: 16px;
-            border-radius: 8px;
-            margin-top: 16px;
-            color: #166534;
-            font-size: 0.95rem;
-            border-left: 4px solid #22c55e;
-            white-space: pre-wrap;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
+        .analysis-header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+        }
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .analysis-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .analysis-section.full-width {
+                grid-column: span 2;
+            }
+        }
+        .analysis-section {
+            background-color: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #cbd5e1;
+        }
+        .analysis-section h3 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-trends { border-left-color: var(--primary-color); background-color: #eff6ff; }
+        .section-trends h3 { color: #1e40af; }
+        
+        .section-opportunities { border-left-color: var(--accent-green); background-color: #f0fdf4; }
+        .section-opportunities h3 { color: #166534; }
+        
+        .section-risks { border-left-color: var(--accent-red); background-color: #fef2f2; }
+        .section-risks h3 { color: #991b1b; }
+        
+        .section-actions { border-left-color: var(--accent-purple); background-color: #faf5ff; }
+        .section-actions h3 { color: #6b21a8; }
+        
+        .markdown-content p { margin: 0 0 10px 0; }
+        .markdown-content p:last-child { margin: 0; }
+        .markdown-content ul { margin: 0; padding-left: 20px; }
+
         .footer {
             text-align: center;
             margin-top: 40px;
@@ -525,8 +617,42 @@ func generateHTML(articles []Article, deepAnalysis string) error {
         </header>
         
         {{if .DeepAnalysis}}
-        <div class="deep-analysis"><strong>💡 全局深度解读：</strong>
-{{.DeepAnalysis}}</div>
+        <div class="deep-analysis">
+            <div class="analysis-header">💡 全局深度解读</div>
+            <div class="analysis-grid">
+                <div class="analysis-section full-width section-trends">
+                    <h3>🔍 核心趋势洞察</h3>
+                    <div class="markdown-content" id="render-trends"></div>
+                    <div style="display:none" id="raw-trends">{{.DeepAnalysis.MacroTrends}}</div>
+                </div>
+                
+                <div class="analysis-section section-opportunities">
+                    <h3>🚀 机遇挖掘</h3>
+                    <div class="markdown-content" id="render-opps"></div>
+                    <div style="display:none" id="raw-opps">{{.DeepAnalysis.Opportunities}}</div>
+                </div>
+                
+                <div class="analysis-section section-risks">
+                    <h3>🛡️ 风险预警</h3>
+                    <div class="markdown-content" id="render-risks"></div>
+                    <div style="display:none" id="raw-risks">{{.DeepAnalysis.Risks}}</div>
+                </div>
+                
+                <div class="analysis-section full-width section-actions">
+                    <h3>💡 行动指南</h3>
+                    <ul style="padding-left: 20px; margin: 0;">
+                    {{range .DeepAnalysis.ActionGuides}}
+                        <li>{{.}}</li>
+                    {{end}}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.getElementById('render-trends').innerHTML = marked.parse(document.getElementById('raw-trends').textContent);
+            document.getElementById('render-opps').innerHTML = marked.parse(document.getElementById('raw-opps').textContent);
+            document.getElementById('render-risks').innerHTML = marked.parse(document.getElementById('raw-risks').textContent);
+        </script>
         {{end}}
 
         {{range .Articles}}
@@ -573,7 +699,7 @@ func generateHTML(articles []Article, deepAnalysis string) error {
 		Date         string
 		Count        int
 		Articles     []Article
-		DeepAnalysis string
+		DeepAnalysis *DeepAnalysisResult
 	}{
 		Date:         time.Now().Format("2006-01-02"),
 		Count:        len(articles),
