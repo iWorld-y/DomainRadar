@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package api.display.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/iWorld-y/domain_radar/app/display/api/display/v1;v1";
+
+service Display {
+  rpc Register (RegisterReq) returns (RegisterReply) {
+    option (google.api.http) = {
+      post: "/v1/register"
+      body: "*"
+    };
+  }
+  rpc Login (LoginReq) returns (LoginReply) {
+    option (google.api.http) = {
+      post: "/v1/login"
+      body: "*"
+    };
+  }
+  rpc ListReports (ListReportsReq) returns (ListReportsReply) {
+    option (google.api.http) = {
+      get: "/v1/reports"
+    };
+  }
+  rpc GetReport (GetReportReq) returns (GetReportReply) {
+    option (google.api.http) = {
+      get: "/v1/reports/{id}"
+    };
+  }
+}
+
+message RegisterReq {
+  string username = 1;
+  string password = 2;
+}
+
+message RegisterReply {
+  bool success = 1;
+  string message = 2;
+}
+
+message LoginReq {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginReply {
+  string token = 1;
+  string username = 2;
+}
+
+message ListReportsReq {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ReportSummary {
+  int32 id = 1;
+  string domain_name = 2;
+  int32 score = 3;
+  string created_at = 4;
+}
+
+message ListReportsReply {
+  repeated ReportSummary reports = 1;
+  int32 total = 2;
+}
+
+message GetReportReq {
+  int32 id = 1;
+}
+
+message Article {
+  string title = 1;
+  string link = 2;
+  string source = 3;
+  string pub_date = 4;
+}
+
+message GetReportReply {
+  int32 id = 1;
+  string domain_name = 2;
+  string overview = 3;
+  string trends = 4;
+  int32 score = 5;
+  repeated string key_events = 6;
+  repeated Article articles = 7;
+}
