@@ -1,42 +1,34 @@
 package data
 
 import (
-	"database/sql"
-	"fmt"
+	"context"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
+	"github.com/iWorld-y/domain_radar/ent"
 	_ "github.com/lib/pq"
 )
 
 type Data struct {
-	db *sql.DB
+	db *ent.Client
 }
 
 func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 	connStr := c.Database.Source
-	db, err := sql.Open(c.Database.Driver, connStr)
+	client, err := ent.Open(c.Database.Driver, connStr)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := db.Ping(); err != nil {
-		return nil, nil, err
-	}
 
-	// Init schema for users
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id SERIAL PRIMARY KEY,
-			username TEXT NOT NULL UNIQUE,
-			password_hash TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`); err != nil {
-		return nil, nil, fmt.Errorf("failed to init users table: %w", err)
+	// Run the auto migration tool.
+	if err := client.Schema.Create(context.Background()); err != nil {
+		client.Close()
+		return nil, nil, err
 	}
 
 	cleanup := func() {
 		log.NewHelper(logger).Info("closing the data resources")
-		db.Close()
+		client.Close()
 	}
-	return &Data{db: db}, cleanup, nil
+	return &Data{db: client}, cleanup, nil
 }

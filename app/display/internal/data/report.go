@@ -2,12 +2,15 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
+	"github.com/iWorld-y/domain_radar/ent"
+	"github.com/iWorld-y/domain_radar/ent/domainreport"
+	"github.com/iWorld-y/domain_radar/ent/reportrun"
 )
 
 type reportRepo struct {
@@ -24,35 +27,48 @@ func NewReportRepo(data *Data, logger log.Logger) biz.ReportRepo {
 
 func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*biz.ReportSummary, int, error) {
 	offset := (page - 1) * pageSize
-	rows, err := r.data.db.QueryContext(ctx, `
-		SELECT rr.id, rr.created_at, COUNT(dr.id) as domain_count, AVG(dr.score) as avg_score 
-		FROM report_runs rr
-		LEFT JOIN domain_reports dr ON rr.id = dr.run_id
-		GROUP BY rr.id, rr.created_at 
-		ORDER BY rr.created_at DESC 
-		LIMIT $1 OFFSET $2`, pageSize, offset)
+
+	var results []struct {
+		ID          int       `sql:"id"`
+		CreatedAt   time.Time `sql:"created_at"`
+		DomainCount int       `sql:"domain_count"`
+		AvgScore    float64   `sql:"avg_score"`
+	}
+
+	// Using Modify to perform custom SQL aggregation
+	err := r.data.db.ReportRun.Query().
+		Limit(pageSize).
+		Offset(offset).
+		Order(ent.Desc(reportrun.FieldCreatedAt)).
+		Modify(func(s *sql.Selector) {
+			t := sql.Table(reportrun.Table)
+			dr := sql.Table(domainreport.Table)
+			s.LeftJoin(dr).On(t.C(reportrun.FieldID), dr.C(domainreport.FieldRunID))
+			s.Select(
+				t.C(reportrun.FieldID),
+				t.C(reportrun.FieldCreatedAt),
+				sql.As(sql.Count(dr.C(domainreport.FieldID)), "domain_count"),
+				sql.As(sql.Avg(dr.C(domainreport.FieldScore)), "avg_score"),
+			)
+			s.GroupBy(t.C(reportrun.FieldID), t.C(reportrun.FieldCreatedAt))
+		}).
+		Scan(ctx, &results)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 
 	var summaries []*biz.ReportSummary
-	for rows.Next() {
-		var s biz.ReportSummary
-		var createdAt sql.NullTime
-		var avgScore sql.NullFloat64
-		if err := rows.Scan(&s.ID, &createdAt, &s.DomainCount, &avgScore); err != nil {
-			return nil, 0, err
-		}
-		if createdAt.Valid {
-			s.Date = createdAt.Time.Format("2006-01-02 15:04:05")
-		}
-		s.AverageScore = int(avgScore.Float64)
-		summaries = append(summaries, &s)
+	for _, res := range results {
+		summaries = append(summaries, &biz.ReportSummary{
+			ID:           res.ID,
+			Date:         res.CreatedAt.Format("2006-01-02 15:04:05"),
+			DomainCount:  res.DomainCount,
+			AverageScore: int(res.AvgScore),
+		})
 	}
 
-	var total int
-	if err := r.data.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM report_runs").Scan(&total); err != nil {
+	total, err := r.data.db.ReportRun.Query().Count(ctx)
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -60,79 +76,62 @@ func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*bi
 }
 
 func (r *reportRepo) GetReportByID(ctx context.Context, id int) (*biz.GroupedReport, error) {
-	var createdAt time.Time
-	err := r.data.db.QueryRowContext(ctx, "SELECT created_at FROM report_runs WHERE id = $1", id).Scan(&createdAt)
+	run, err := r.data.db.ReportRun.Query().
+		Where(reportrun.ID(id)).
+		WithDeepAnalysisResults(func(q *ent.DeepAnalysisResultQuery) {
+			q.WithActionGuides()
+		}).
+		WithDomainReports(func(q *ent.DomainReportQuery) {
+			q.WithArticles()
+			q.WithKeyEvents()
+		}).
+		Only(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if ent.IsNotFound(err) {
 			return nil, errors.NotFound("REPORT_NOT_FOUND", "report not found")
 		}
 		return nil, err
 	}
 
 	grouped := &biz.GroupedReport{
-		ID:   id,
-		Date: createdAt.Format("2006-01-02 15:04:05"),
+		ID:   run.ID,
+		Date: run.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	// Get Deep Analysis
-	var da biz.DeepAnalysisResult
-	var daID int
-	err = r.data.db.QueryRowContext(ctx, `
-		SELECT id, macro_trends, opportunities, risks 
-		FROM deep_analysis_results 
-		WHERE run_id = $1`, id).Scan(&daID, &da.MacroTrends, &da.Opportunities, &da.Risks)
-	if err == nil {
-		// Get Action Guides
-		gRows, err := r.data.db.QueryContext(ctx, "SELECT guide_content FROM action_guides WHERE deep_analysis_id = $1", daID)
-		if err == nil {
-			defer gRows.Close()
-			for gRows.Next() {
-				var g string
-				gRows.Scan(&g)
-				da.ActionGuides = append(da.ActionGuides, g)
-			}
+	// Map DeepAnalysis
+	if len(run.Edges.DeepAnalysisResults) > 0 {
+		da := run.Edges.DeepAnalysisResults[0]
+		grouped.DeepAnalysis = &biz.DeepAnalysisResult{
+			MacroTrends:   da.MacroTrends,
+			Opportunities: da.Opportunities,
+			Risks:         da.Risks,
 		}
-		grouped.DeepAnalysis = &da
+		for _, ag := range da.Edges.ActionGuides {
+			grouped.DeepAnalysis.ActionGuides = append(grouped.DeepAnalysis.ActionGuides, ag.GuideContent)
+		}
 	}
 
-	// Get Domain Reports
-	rows, err := r.data.db.QueryContext(ctx, `
-		SELECT id, domain_name, overview, trends, score 
-		FROM domain_reports 
-		WHERE run_id = $1`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var rp biz.Report
-		if err := rows.Scan(&rp.ID, &rp.DomainName, &rp.Overview, &rp.Trends, &rp.Score); err != nil {
-			return nil, err
+	// Map DomainReports
+	for _, dr := range run.Edges.DomainReports {
+		rp := &biz.Report{
+			ID:         dr.ID,
+			DomainName: dr.DomainName,
+			Overview:   dr.Overview,
+			Trends:     dr.Trends,
+			Score:      dr.Score,
 		}
-
-		// Get Articles
-		aRows, err := r.data.db.QueryContext(ctx, "SELECT title, link, source, pub_date FROM articles WHERE domain_report_id = $1", rp.ID)
-		if err == nil {
-			defer aRows.Close()
-			for aRows.Next() {
-				var a biz.Article
-				aRows.Scan(&a.Title, &a.Link, &a.Source, &a.PubDate)
-				rp.Articles = append(rp.Articles, a)
-			}
+		for _, art := range dr.Edges.Articles {
+			rp.Articles = append(rp.Articles, biz.Article{
+				Title:   art.Title,
+				Link:    art.Link,
+				Source:  art.Source,
+				PubDate: art.PubDate,
+			})
 		}
-
-		// Get Key Events
-		eRows, err := r.data.db.QueryContext(ctx, "SELECT event_content FROM key_events WHERE domain_report_id = $1", rp.ID)
-		if err == nil {
-			defer eRows.Close()
-			for eRows.Next() {
-				var e string
-				eRows.Scan(&e)
-				rp.KeyEvents = append(rp.KeyEvents, e)
-			}
+		for _, ke := range dr.Edges.KeyEvents {
+			rp.KeyEvents = append(rp.KeyEvents, ke.EventContent)
 		}
-		grouped.Domains = append(grouped.Domains, &rp)
+		grouped.Domains = append(grouped.Domains, rp)
 	}
 
 	return grouped, nil

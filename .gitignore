@@ -32,7 +32,6 @@ go.work.sum
 # .vscode/
 
 api/
-docs/
 output/
 configs/
 .*/

@@ -2,10 +2,12 @@ package data
 
 import (
 	"context"
-	"database/sql"
+
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
+	"github.com/iWorld-y/domain_radar/ent"
+	"github.com/iWorld-y/domain_radar/ent/user"
 )
 
 type userRepo struct {
@@ -21,18 +23,26 @@ func NewUserRepo(data *Data, logger log.Logger) biz.UserRepo {
 }
 
 func (r *userRepo) CreateUser(ctx context.Context, u *biz.User) error {
-	_, err := r.data.db.ExecContext(ctx, "INSERT INTO users (username, password_hash) VALUES ($1, $2)", u.Username, u.PasswordHash)
+	_, err := r.data.db.User.Create().
+		SetUsername(u.Username).
+		SetPasswordHash(u.PasswordHash).
+		Save(ctx)
 	return err
 }
 
 func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*biz.User, error) {
-	row := r.data.db.QueryRowContext(ctx, "SELECT id, username, password_hash FROM users WHERE username = $1", username)
-	var u biz.User
-	if err := row.Scan(&u.ID, &u.Username, &u.PasswordHash); err != nil {
-		if err == sql.ErrNoRows {
+	u, err := r.data.db.User.Query().
+		Where(user.Username(username)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
 			return nil, errors.NotFound("USER_NOT_FOUND", "user not found")
 		}
 		return nil, err
 	}
-	return &u, nil
+	return &biz.User{
+		ID:           int(u.ID),
+		Username:     u.Username,
+		PasswordHash: u.PasswordHash,
+	}, nil
 }
