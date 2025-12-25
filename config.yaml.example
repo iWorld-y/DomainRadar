@@ -23,6 +23,6 @@ concurrency:
 db:
   host: "localhost"
   port: 5432
-  user: "postgres"
-  password: "your_password"
+  user: "user"
+  password: "password"
   name: "domain_radar"

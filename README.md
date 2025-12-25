@@ -30,6 +30,7 @@ DomainRadar 是一个智能化的领域情报分析工具。它利用先进的 L
 
 - macOS / Linux / Windows
 - Go 1.21+
+- Docker (用于启动 PostgreSQL 数据库)
 - Tavily API Key ([获取地址](https://tavily.com/))
 - LLM API Key (OpenAI 或其他兼容服务商)
 
@@ -40,22 +41,30 @@ git clone https://github.com/iWorld-y/domain_radar.git
 cd domain_radar
 ```
 
-### 2. 配置环境
+### 2. 启动数据库
 
-在 `configs` 目录下创建 `config.yaml` 文件：
+项目使用 PostgreSQL 存储分析报告，可以通过 Docker 快速启动：
+
+```bash
+docker-compose up -d
+```
+
+### 3. 配置环境
+
+拷贝示例配置文件并进行修改：
 
 ```bash
 mkdir -p configs
-touch configs/config.yaml
+cp config.yaml.example configs/config.yaml
 ```
 
-编辑 `configs/config.yaml`，填入您的配置信息：
+编辑 `configs/config.yaml`，填入您的 API Key 和数据库配置：
 
 ```yaml
 llm:
   base_url: "https://api.openai.com/v1" # 或其他兼容服务的 Base URL
   api_key: "your_llm_api_key"
-  model: "gpt-4-turbo" # 建议使用长文本能力较强的模型
+  model: "gpt-4-turbo"
 
 tavily_api_key: "tvly-xxxxxxxxxxxx"
 
@@ -64,26 +73,21 @@ user_persona: "资深全栈工程师，关注架构设计与 AI 落地"
 domains:
   - "Artificial Intelligence"
   - "Cloud Computing"
-  - "Rust Programming"
 
-log:
-  level: "info"
-  file: "app.log"
-
-concurrency:
-  qps: 5   # 每秒请求数限制
-  rpm: 60  # 每分钟请求数限制
+db:
+  host: "localhost"
+  port: 5432
+  user: "user"       # 需与 docker-compose.yaml 中的配置一致
+  password: "password"
+  name: "domain_radar"
 ```
 
-### 3. 编译与运行
+### 4. 编译与运行
 
 项目提供了 `Makefile` 以简化操作：
 
 ```bash
-# 编译项目
-make build
-
-# 运行项目
+# 编译并运行情报收集分析工具
 make run
 ```
 
@@ -93,7 +97,17 @@ make run
 open output/index.html
 ```
 
-### 4. 清理
+### 5. 启动展示服务 (可选)
+
+如果您希望通过 Web 界面查看历史报告，可以启动展示服务：
+
+```bash
+make run-display
+```
+
+默认访问 `http://localhost:8001`。
+
+### 6. 清理
 
 ```bash
 make clean
@@ -105,16 +119,14 @@ make clean
 .
 ├── Makefile                # 构建管理
 ├── README.md               # 项目文档
-├── configs/                # 配置文件目录
-├── go.mod                  # Go 依赖定义
-├── src/
-│   ├── cmd/
-│   │   └── domain_radar/   # 主程序入口
-│   └── internal/
-│       ├── config/         # 配置加载逻辑
-│       ├── logger/         # 日志模块
-│       └── tavily/         # Tavily API 客户端封装
-└── output/                 # 编译产物与报告输出目录
+├── app/
+│   ├── display/            # 展示服务 (Web UI)
+│   └── domain_radar/       # 情报分析核心服务
+├── configs/                # 运行时配置文件目录
+├── proto/                  # Protobuf 定义
+├── config.yaml.example     # 配置文件示例
+├── docker-compose.yaml     # 基础设施 (PostgreSQL)
+└── output/                 # 编译产物与报告输出
 ```
 
 ## 🤝 贡献
