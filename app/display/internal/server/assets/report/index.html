@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>领域雷达 | 报表详情</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 40px; padding: 20px 0; }
+        h1 { font-size: 2.5rem; margin: 0 0 10px 0; }
+        .date-info { color: var(--text-secondary); }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        /* 深度解读样式 */
+        .deep-analysis {
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+        .analysis-header { font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; display: inline-block; }
+        .analysis-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+        @media (min-width: 768px) { .analysis-grid { grid-template-columns: 1fr 1fr; } }
+        .analysis-section { background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #cbd5e1; }
+        .section-trends { border-left-color: #2563eb; background: #eff6ff; grid-column: 1 / -1; }
+        .section-opps { border-left-color: #22c55e; background: #f0fdf4; }
+        .section-risks { border-left-color: #ef4444; background: #fef2f2; }
+        .section-actions { border-left-color: #a855f7; background: #faf5ff; grid-column: 1 / -1; }
+        .analysis-section h3 { margin-top: 0; color: #334155; }
+
+        /* 领域报告样式 */
+        .domain-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+        .domain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 15px;
+        }
+        .domain-title { font-size: 1.8rem; font-weight: 800; color: #0f172a; }
+        .domain-score { 
+            background: #fee2e2; color: #991b1b; 
+            padding: 4px 12px; border-radius: 20px; font-weight: bold; 
+        }
+        .score-high { background: #dcfce7; color: #166534; }
+        
+        .domain-content { display: grid; gap: 24px; grid-template-columns: 1fr; }
+        @media (min-width: 768px) { .domain-content { grid-template-columns: 2fr 1fr; } }
+        
+        .overview-section h4 { margin-top: 0; color: #475569; font-size: 1.1rem; }
+        .key-events ul { padding-left: 20px; color: #334155; }
+        .key-events li { margin-bottom: 8px; }
+        
+        .references {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed #e2e8f0;
+            font-size: 0.9rem;
+        }
+        .ref-title { font-weight: bold; color: #64748b; margin-bottom: 10px; }
+        .ref-list { list-style: none; padding: 0; }
+        .ref-list li { margin-bottom: 6px; }
+        .ref-list a { color: var(--primary-color); text-decoration: none; }
+        .ref-list a:hover { text-decoration: underline; }
+        
+        #loading { text-align: center; padding: 50px; font-size: 1.2rem; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">← 返回仪表盘</a>
+        
+        <div id="loading">正在加载报表详情...</div>
+        <div id="report-content" style="display: none;">
+            <header>
+                <h1>📡 领域雷达日报</h1>
+                <div class="date-info" id="date-info"></div>
+            </header>
+
+            <div id="deep-analysis-container"></div>
+            <div id="domain-reports-container"></div>
+        </div>
+    </div>
+
+    <script>
+        async function loadReport() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const date = params.get('date');
+            if (!date) {
+                document.getElementById('loading').innerText = '未指定日期';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/v1/reports/${date}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (res.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/';
+                    return;
+                }
+
+                if (!res.ok) {
+                    throw new Error('加载报表失败');
+                }
+
+                const data = await res.json();
+                renderReport(data);
+            } catch (err) {
+                document.getElementById('loading').innerText = '错误: ' + err.message;
+            }
+        }
+
+        function renderReport(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('report-content').style.display = 'block';
+            
+            document.getElementById('date-info').innerText = `${data.date} • 覆盖 ${data.domains ? data.domains.length : 0} 个领域`;
+
+            // 渲染深度解读 (如果有)
+            if (data.deepAnalysis) {
+                const da = data.deepAnalysis;
+                const daHtml = `
+                    <div class="deep-analysis">
+                        <div class="analysis-header">🧠 全局深度解读</div>
+                        <div class="analysis-grid">
+                            <div class="analysis-section section-trends">
+                                <h3>🔍 宏观趋势</h3>
+                                <div>${marked.parse(da.macroTrends || '')}</div>
+                            </div>
+                            <div class="analysis-section section-opps">
+                                <h3>🚀 机遇</h3>
+                                <div>${marked.parse(da.opportunities || '')}</div>
+                            </div>
+                            <div class="analysis-section section-risks">
+                                <h3>🛡️ 风险</h3>
+                                <div>${marked.parse(da.risks || '')}</div>
+                            </div>
+                            <div class="analysis-section section-actions">
+                                <h3>💡 行动指南</h3>
+                                <ul>
+                                    ${(da.actionGuides || []).map(g => `<li>${g}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('deep-analysis-container').innerHTML = daHtml;
+            }
+
+            // 渲染领域报告
+            const domainsHtml = (data.domains || []).map(d => `
+                <div class="domain-card">
+                    <div class="domain-header">
+                        <div class="domain-title">${d.domainName}</div>
+                        <div class="domain-score ${d.score >= 7 ? 'score-high' : ''}">热度: ${d.score}/10</div>
+                    </div>
+                    
+                    <div class="domain-content">
+                        <div class="overview-section">
+                            <h4>📝 综述</h4>
+                            <div class="markdown-content">${marked.parse(d.overview || '')}</div>
+                            
+                            <h4>📈 趋势</h4>
+                            <div class="markdown-content">${marked.parse(d.trends || '')}</div>
+                        </div>
+                        
+                        <div class="key-events">
+                            <h4>🔥 关键事件</h4>
+                            <ul>
+                                ${(d.keyEvents || []).map(e => `<li>${e}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="references">
+                        <div class="ref-title">🔗 参考来源</div>
+                        <ul class="ref-list">
+                            ${(d.articles || []).map(a => `
+                                <li>
+                                    <a href="${a.link}" target="_blank">${a.title}</a> 
+                                    <span style="color:#94a3b8; font-size: 0.8em">(${a.source})</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('domain-reports-container').innerHTML = domainsHtml;
+        }
+
+        document.addEventListener('DOMContentLoaded', loadReport);
+    </script>
+</body>
+</html>

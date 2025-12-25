@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Domain Radar - Dashboard</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
+        .report-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; cursor: pointer; }
+        .report-item:hover { background-color: #f9f9f9; }
+        .score { font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+    <h2>Reports Dashboard</h2>
+    <div id="list">Loading...</div>
+
+    <script>
+        async function load() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+
+            const res = await fetch('/v1/reports?page=1&page_size=20', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (res.status === 401) {
+                localStorage.removeItem('token');
+                window.location.href = '/';
+                return;
+            }
+
+            const data = await res.json();
+            const list = document.getElementById('list');
+            list.innerHTML = '';
+            if (!data.reports) {
+                list.innerText = "No reports found.";
+                return;
+            }
+            data.reports.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'report-item';
+                div.innerHTML = `
+                    <h3>${r.date} <span class="score">Avg Score: ${r.averageScore}</span></h3>
+                    <p>Included Domains: ${r.domainCount}</p>
+                `;
+                div.onclick = () => window.location.href = `/report?date=${r.date}`;
+                list.appendChild(div);
+            });
+        }
+        load();
+    </script>
+</body>
+</html>

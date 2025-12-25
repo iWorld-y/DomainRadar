@@ -79,7 +79,7 @@ func NewHTTPServer(c *conf.Server, auth *conf.Auth, s *service.DisplayService, l
 	})
 
 	srv.HandleFunc("/report", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-		content, _ := assets.ReadFile("assets/report.html")
+		content, _ := assets.ReadFile("assets/report/index.html")
 		w.Write(content)
 	})
 
