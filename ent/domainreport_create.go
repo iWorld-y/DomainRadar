@@ -99,6 +99,12 @@ func (_c *DomainReportCreate) SetNillableCreatedAt(v *time.Time) *DomainReportCr
 	return _c
 }
 
+// SetID sets the "id" field.
+func (_c *DomainReportCreate) SetID(v int) *DomainReportCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
 // SetReportRunID sets the "report_run" edge to the ReportRun entity by ID.
 func (_c *DomainReportCreate) SetReportRunID(id int) *DomainReportCreate {
 	_c.mutation.SetReportRunID(id)
@@ -211,8 +217,10 @@ func (_c *DomainReportCreate) sqlSave(ctx context.Context) (*DomainReport, error
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != _node.ID {
+		id := _spec.ID.Value.(int64)
+		_node.ID = int(id)
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -223,6 +231,10 @@ func (_c *DomainReportCreate) createSpec() (*DomainReport, *sqlgraph.CreateSpec)
 		_node = &DomainReport{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(domainreport.Table, sqlgraph.NewFieldSpec(domainreport.FieldID, field.TypeInt))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = id
+	}
 	if value, ok := _c.mutation.DomainName(); ok {
 		_spec.SetField(domainreport.FieldDomainName, field.TypeString, value)
 		_node.DomainName = value
@@ -340,7 +352,7 @@ func (_c *DomainReportCreateBulk) Save(ctx context.Context) ([]*DomainReport, er
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
+				if specs[i].ID.Value != nil && nodes[i].ID == 0 {
 					id := specs[i].ID.Value.(int64)
 					nodes[i].ID = int(id)
 				}

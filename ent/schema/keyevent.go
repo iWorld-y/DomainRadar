@@ -2,6 +2,7 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -14,6 +15,9 @@ type KeyEvent struct {
 // Fields of the KeyEvent.
 func (KeyEvent) Fields() []ent.Field {
 	return []ent.Field{
+		field.Int("id").SchemaType(map[string]string{
+			dialect.Postgres: "serial",
+		}),
 		field.Int("domain_report_id").Optional(),
 		field.String("event_content").Optional(),
 	}

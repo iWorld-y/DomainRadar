@@ -92,6 +92,12 @@ func (_c *DeepAnalysisResultCreate) SetNillableCreatedAt(v *time.Time) *DeepAnal
 	return _c
 }
 
+// SetID sets the "id" field.
+func (_c *DeepAnalysisResultCreate) SetID(v int) *DeepAnalysisResultCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
 // SetReportRunID sets the "report_run" edge to the ReportRun entity by ID.
 func (_c *DeepAnalysisResultCreate) SetReportRunID(id int) *DeepAnalysisResultCreate {
 	_c.mutation.SetReportRunID(id)
@@ -186,8 +192,10 @@ func (_c *DeepAnalysisResultCreate) sqlSave(ctx context.Context) (*DeepAnalysisR
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != _node.ID {
+		id := _spec.ID.Value.(int64)
+		_node.ID = int(id)
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -198,6 +206,10 @@ func (_c *DeepAnalysisResultCreate) createSpec() (*DeepAnalysisResult, *sqlgraph
 		_node = &DeepAnalysisResult{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(deepanalysisresult.Table, sqlgraph.NewFieldSpec(deepanalysisresult.FieldID, field.TypeInt))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = id
+	}
 	if value, ok := _c.mutation.MacroTrends(); ok {
 		_spec.SetField(deepanalysisresult.FieldMacroTrends, field.TypeString, value)
 		_node.MacroTrends = value
@@ -295,7 +307,7 @@ func (_c *DeepAnalysisResultCreateBulk) Save(ctx context.Context) ([]*DeepAnalys
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
+				if specs[i].ID.Value != nil && nodes[i].ID == 0 {
 					id := specs[i].ID.Value.(int64)
 					nodes[i].ID = int(id)
 				}

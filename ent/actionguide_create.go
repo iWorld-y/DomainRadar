@@ -47,6 +47,12 @@ func (_c *ActionGuideCreate) SetNillableGuideContent(v *string) *ActionGuideCrea
 	return _c
 }
 
+// SetID sets the "id" field.
+func (_c *ActionGuideCreate) SetID(v int) *ActionGuideCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
 // SetDeepAnalysisResultID sets the "deep_analysis_result" edge to the DeepAnalysisResult entity by ID.
 func (_c *ActionGuideCreate) SetDeepAnalysisResultID(id int) *ActionGuideCreate {
 	_c.mutation.SetDeepAnalysisResultID(id)
@@ -114,8 +120,10 @@ func (_c *ActionGuideCreate) sqlSave(ctx context.Context) (*ActionGuide, error) 
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != _node.ID {
+		id := _spec.ID.Value.(int64)
+		_node.ID = int(id)
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -126,6 +134,10 @@ func (_c *ActionGuideCreate) createSpec() (*ActionGuide, *sqlgraph.CreateSpec) {
 		_node = &ActionGuide{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(actionguide.Table, sqlgraph.NewFieldSpec(actionguide.FieldID, field.TypeInt))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = id
+	}
 	if value, ok := _c.mutation.GuideContent(); ok {
 		_spec.SetField(actionguide.FieldGuideContent, field.TypeString, value)
 		_node.GuideContent = value
@@ -194,7 +206,7 @@ func (_c *ActionGuideCreateBulk) Save(ctx context.Context) ([]*ActionGuide, erro
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
+				if specs[i].ID.Value != nil && nodes[i].ID == 0 {
 					id := specs[i].ID.Value.(int64)
 					nodes[i].ID = int(id)
 				}

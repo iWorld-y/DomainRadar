@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema/field"
 )
 
@@ -15,6 +16,9 @@ type User struct {
 // Fields of the User.
 func (User) Fields() []ent.Field {
 	return []ent.Field{
+		field.Int("id").SchemaType(map[string]string{
+			dialect.Postgres: "serial",
+		}),
 		field.String("username").Unique(),
 		field.String("password_hash"),
 		field.Time("created_at").Default(time.Now),

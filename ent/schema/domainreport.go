@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -16,6 +17,9 @@ type DomainReport struct {
 // Fields of the DomainReport.
 func (DomainReport) Fields() []ent.Field {
 	return []ent.Field{
+		field.Int("id").SchemaType(map[string]string{
+			dialect.Postgres: "serial",
+		}),
 		field.Int("run_id").Optional(),
 		field.String("domain_name"),
 		field.String("overview").Optional(),

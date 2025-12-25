@@ -2,6 +2,7 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -14,6 +15,9 @@ type Article struct {
 // Fields of the Article.
 func (Article) Fields() []ent.Field {
 	return []ent.Field{
+		field.Int("id").SchemaType(map[string]string{
+			dialect.Postgres: "serial",
+		}),
 		field.Int("domain_report_id").Optional(),
 		field.String("title").Optional(),
 		field.String("link").Optional(),

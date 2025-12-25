@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -16,6 +17,9 @@ type DeepAnalysisResult struct {
 // Fields of the DeepAnalysisResult.
 func (DeepAnalysisResult) Fields() []ent.Field {
 	return []ent.Field{
+		field.Int("id").SchemaType(map[string]string{
+			dialect.Postgres: "serial",
+		}),
 		field.Int("run_id").Optional(),
 		field.String("macro_trends").Optional(),
 		field.String("opportunities").Optional(),

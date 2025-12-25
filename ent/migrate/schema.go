@@ -10,9 +10,9 @@ import (
 var (
 	// ActionGuidesColumns holds the columns for the "action_guides" table.
 	ActionGuidesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "guide_content", Type: field.TypeString, Nullable: true},
-		{Name: "deep_analysis_id", Type: field.TypeInt, Nullable: true},
+		{Name: "deep_analysis_id", Type: field.TypeInt, Nullable: true, SchemaType: map[string]string{"postgres": "serial"}},
 	}
 	// ActionGuidesTable holds the schema information for the "action_guides" table.
 	ActionGuidesTable = &schema.Table{
@@ -30,13 +30,13 @@ var (
 	}
 	// ArticlesColumns holds the columns for the "articles" table.
 	ArticlesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "title", Type: field.TypeString, Nullable: true},
 		{Name: "link", Type: field.TypeString, Nullable: true},
 		{Name: "source", Type: field.TypeString, Nullable: true},
 		{Name: "pub_date", Type: field.TypeString, Nullable: true},
 		{Name: "content", Type: field.TypeString, Nullable: true},
-		{Name: "domain_report_id", Type: field.TypeInt, Nullable: true},
+		{Name: "domain_report_id", Type: field.TypeInt, Nullable: true, SchemaType: map[string]string{"postgres": "serial"}},
 	}
 	// ArticlesTable holds the schema information for the "articles" table.
 	ArticlesTable = &schema.Table{
@@ -54,12 +54,12 @@ var (
 	}
 	// DeepAnalysisResultsColumns holds the columns for the "deep_analysis_results" table.
 	DeepAnalysisResultsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "macro_trends", Type: field.TypeString, Nullable: true},
 		{Name: "opportunities", Type: field.TypeString, Nullable: true},
 		{Name: "risks", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "run_id", Type: field.TypeInt, Nullable: true},
+		{Name: "run_id", Type: field.TypeInt, Nullable: true, SchemaType: map[string]string{"postgres": "serial"}},
 	}
 	// DeepAnalysisResultsTable holds the schema information for the "deep_analysis_results" table.
 	DeepAnalysisResultsTable = &schema.Table{
@@ -77,13 +77,13 @@ var (
 	}
 	// DomainReportsColumns holds the columns for the "domain_reports" table.
 	DomainReportsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "domain_name", Type: field.TypeString},
 		{Name: "overview", Type: field.TypeString, Nullable: true},
 		{Name: "trends", Type: field.TypeString, Nullable: true},
 		{Name: "score", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "run_id", Type: field.TypeInt, Nullable: true},
+		{Name: "run_id", Type: field.TypeInt, Nullable: true, SchemaType: map[string]string{"postgres": "serial"}},
 	}
 	// DomainReportsTable holds the schema information for the "domain_reports" table.
 	DomainReportsTable = &schema.Table{
@@ -101,9 +101,9 @@ var (
 	}
 	// KeyEventsColumns holds the columns for the "key_events" table.
 	KeyEventsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "event_content", Type: field.TypeString, Nullable: true},
-		{Name: "domain_report_id", Type: field.TypeInt, Nullable: true},
+		{Name: "domain_report_id", Type: field.TypeInt, Nullable: true, SchemaType: map[string]string{"postgres": "serial"}},
 	}
 	// KeyEventsTable holds the schema information for the "key_events" table.
 	KeyEventsTable = &schema.Table{
@@ -121,7 +121,7 @@ var (
 	}
 	// ReportRunsColumns holds the columns for the "report_runs" table.
 	ReportRunsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// ReportRunsTable holds the schema information for the "report_runs" table.
@@ -132,7 +132,7 @@ var (
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "username", Type: field.TypeString, Unique: true},
 		{Name: "password_hash", Type: field.TypeString},
 		{Name: "created_at", Type: field.TypeTime},
