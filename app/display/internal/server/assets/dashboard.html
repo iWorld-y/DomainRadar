@@ -61,9 +61,22 @@
     <div class="container">
         <div class="flex justify-between items-center mb-4">
             <h2 data-i18n="reports_title">Reports Dashboard</h2>
-            <button class="btn btn-primary btn-sm" onclick="load()" data-i18n="refresh_btn">Refresh</button>
+            <div class="flex gap-2">
+                <button class="btn btn-outline btn-sm" onclick="generateReport()" id="gen-btn" data-i18n="generate_report_btn">Generate Report</button>
+                <button class="btn btn-primary btn-sm" onclick="load()" data-i18n="refresh_btn">Refresh</button>
+            </div>
         </div>
         
+        <div id="task-status" class="alert mb-4" style="display: none;">
+            <div class="flex justify-between items-center">
+                <span id="task-msg">Generating...</span>
+                <span id="task-progress">0%</span>
+            </div>
+            <div style="width: 100%; background: #e2e8f0; height: 4px; border-radius: 2px; margin-top: 8px;">
+                <div id="progress-bar" style="width: 0%; background: var(--primary); height: 100%; border-radius: 2px; transition: width 0.3s;"></div>
+            </div>
+        </div>
+
         <div id="loading" class="text-center" style="padding: 2rem; color: var(--text-secondary);" data-i18n="loading">
             Loading reports...
         </div>
@@ -141,6 +154,75 @@
             }
         }
         
+        async function generateReport() {
+            const token = localStorage.getItem('token');
+            const btn = document.getElementById('gen-btn');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/v1/report/trigger', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.status === 400) {
+                     alert("Please configure interested domains in profile first.");
+                     window.location.href = "/profile";
+                     return;
+                }
+
+                const data = await res.json();
+                if (data.taskId) {
+                    trackTask(data.taskId);
+                } else {
+                    alert("Failed to start task");
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                alert(t("msg_network_error"));
+                btn.disabled = false;
+            }
+        }
+
+        async function trackTask(taskId) {
+            const statusDiv = document.getElementById('task-status');
+            const msgSpan = document.getElementById('task-msg');
+            const progSpan = document.getElementById('task-progress');
+            const progBar = document.getElementById('progress-bar');
+            
+            statusDiv.style.display = 'block';
+            
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/v1/task/${taskId}`);
+                    const data = await res.json();
+                    
+                    msgSpan.innerText = data.message || t("generating");
+                    progSpan.innerText = data.progress + "%";
+                    progBar.style.width = data.progress + "%";
+                    
+                    if (data.status === 'completed') {
+                        clearInterval(interval);
+                        msgSpan.innerText = t("task_completed");
+                        statusDiv.className = "alert alert-success mb-4";
+                        document.getElementById('gen-btn').disabled = false;
+                        setTimeout(() => {
+                            statusDiv.style.display = 'none';
+                            load(); // Reload list
+                        }, 2000);
+                    } else if (data.status === 'failed') {
+                        clearInterval(interval);
+                        msgSpan.innerText = t("task_failed") + data.message;
+                        statusDiv.className = "alert alert-error mb-4";
+                        document.getElementById('gen-btn').disabled = false;
+                    }
+                } catch (e) {
+                    clearInterval(interval);
+                    document.getElementById('gen-btn').disabled = false;
+                }
+            }, 1000);
+        }
+
         // Reload when language changes to update dynamic content
         const originalSetLanguage = window.setLanguage;
         window.setLanguage = function(lang) {

@@ -19,6 +19,8 @@ const (
 	FieldPasswordHash = "password_hash"
 	// FieldPersona holds the string denoting the persona field in the database.
 	FieldPersona = "persona"
+	// FieldDomains holds the string denoting the domains field in the database.
+	FieldDomains = "domains"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the user in the database.
@@ -31,6 +33,7 @@ var Columns = []string{
 	FieldUsername,
 	FieldPasswordHash,
 	FieldPersona,
+	FieldDomains,
 	FieldCreatedAt,
 }
 

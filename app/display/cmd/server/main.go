@@ -70,7 +70,7 @@ func main() {
 	userUseCase := biz.NewUserUseCase(userRepo, bc.Auth, logger)
 	reportUseCase := biz.NewReportUseCase(reportRepo, logger)
 
-	displayService := service.NewDisplayService(userUseCase, reportUseCase, logger)
+	displayService := service.NewDisplayService(userUseCase, reportUseCase, logger, bc.Data)
 
 	httpSrv := server.NewHTTPServer(bc.Server, bc.Auth, displayService, logger)
 

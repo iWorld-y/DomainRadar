@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -23,6 +24,8 @@ type User struct {
 	PasswordHash string `json:"password_hash,omitempty"`
 	// User persona for deep analysis
 	Persona string `json:"persona,omitempty"`
+	// User interested domains
+	Domains []string `json:"domains,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -33,6 +36,8 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldDomains:
+			values[i] = new([]byte)
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
 		case user.FieldUsername, user.FieldPasswordHash, user.FieldPersona:
@@ -77,6 +82,14 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field persona", values[i])
 			} else if value.Valid {
 				_m.Persona = value.String
+			}
+		case user.FieldDomains:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field domains", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Domains); err != nil {
+					return fmt.Errorf("unmarshal field domains: %w", err)
+				}
 			}
 		case user.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -128,6 +141,9 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("persona=")
 	builder.WriteString(_m.Persona)
+	builder.WriteString(", ")
+	builder.WriteString("domains=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Domains))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

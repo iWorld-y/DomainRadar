@@ -41,13 +41,17 @@ func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*biz
 		return nil, err
 	}
 	return &biz.User{
-		ID:           int(u.ID),
+		ID:           u.ID,
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
 		Persona:      u.Persona,
+		Domains:      u.Domains,
 	}, nil
 }
 
-func (r *userRepo) UpdateUserPersona(ctx context.Context, id int, persona string) error {
-	return r.data.db.User.UpdateOneID(id).SetPersona(persona).Exec(ctx)
+func (r *userRepo) UpdateUserProfile(ctx context.Context, id int, persona string, domains []string) error {
+	return r.data.db.User.UpdateOneID(id).
+		SetPersona(persona).
+		SetDomains(domains).
+		Exec(ctx)
 }

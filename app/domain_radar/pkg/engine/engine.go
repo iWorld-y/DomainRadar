@@ -1,15 +1,9 @@
-package main
+package engine
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
-	"flag"
 	"fmt"
-	"html/template"
-	"log"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -21,7 +15,6 @@ import (
 	"github.com/go-shiori/go-readability"
 	"golang.org/x/time/rate"
 
-	"github.com/iWorld-y/domain_radar/app/common/ent"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/logger"
 	dm "github.com/iWorld-y/domain_radar/app/domain_radar/pkg/model"
@@ -29,147 +22,122 @@ import (
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/tavily"
 )
 
-//go:embed resource/index.html
-var templateFS embed.FS
-
-// HTMLData 用于模板渲染的数据
-type HTMLData struct {
-	Date          string
-	Count         int // 总阅读文章数
-	DomainReports []dm.DomainReport
-	DeepAnalysis  *dm.DeepAnalysisResult
+// Engine 核心处理引擎
+type Engine struct {
+	cfg          *config.Config
+	store        *storage.Storage
+	chatModel    model.ChatModel
+	tavilyClient *tavily.Client
+	limiter      *rate.Limiter
 }
 
-func main() {
-	// 0. 定义命令行参数
-	configPath := flag.String("config", "configs/config.yaml", "配置文件路径")
-	flag.Parse()
-
-	// 1. 加载配置
-	cfg, err := config.LoadConfig(*configPath)
-	if err != nil {
-		log.Fatalf("无法加载配置文件 [%s]: %v", *configPath, err)
-	}
-
-	// 验证配置
-	if cfg.TavilyAPIKey == "" {
-		log.Fatal("配置错误: 未设置 tavily_api_key")
-	}
-	if len(cfg.Domains) == 0 {
-		log.Fatal("配置错误: 未设置感兴趣的领域 (domains)")
-	}
-
-	// 2. 初始化日志
-	if err = logger.InitLogger(cfg.Log.Level, cfg.Log.File); err != nil {
-		log.Fatalf("无法初始化日志: %v", err)
-	}
-	logger.Log.Info("启动领域雷达...")
-
+// NewEngine 创建引擎实例
+func NewEngine(cfg *config.Config, store *storage.Storage) (*Engine, error) {
 	ctx := context.Background()
 
-	// 初始化数据库连接
-	// 如果配置了数据库信息，则尝试连接
-	var store *storage.Storage
-	var runID int
-	if cfg.DB.Host != "" {
-		s, err := storage.NewStorage(cfg.DB)
-		if err != nil {
-			logger.Log.Errorf("无法连接数据库: %v. 将仅生成 HTML 文件。", err)
-		} else {
-			store = s
-			defer store.Close()
-			logger.Log.Info("已成功连接到数据库")
-
-			// 创建本次运行记录
-			rid, err := store.CreateRun()
-			if err != nil {
-				logger.Log.Errorf("无法创建运行记录: %v", err)
-			} else {
-				runID = rid
-				logger.Log.Infof("创建运行记录成功, RunID: %d", runID)
-			}
-		}
-	} else {
-		logger.Log.Info("未配置数据库信息，跳过数据库连接")
-	}
-
-	// 3. 初始化 LLM
+	// 初始化 LLM
 	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		BaseURL: cfg.LLM.BaseURL,
 		APIKey:  cfg.LLM.APIKey,
 		Model:   cfg.LLM.Model,
 	})
 	if err != nil {
-		logger.Log.Fatalf("LLM 初始化失败: %v", err)
+		return nil, fmt.Errorf("LLM 初始化失败: %w", err)
 	}
 
-	// 4. 初始化限流器
+	// 初始化限流器
 	limit := rate.Limit(float64(cfg.Concurrency.RPM) / 60.0)
 	burst := cfg.Concurrency.QPS
 	limiter := rate.NewLimiter(limit, burst)
-	logger.Log.Infof("限流器已配置: Limit=%.2f req/s, Burst=%d", limit, burst)
+
+	// 初始化 Tavily 客户端
+	tavilyClient := tavily.NewClient(cfg.TavilyAPIKey)
+
+	return &Engine{
+		cfg:          cfg,
+		store:        store,
+		chatModel:    chatModel,
+		tavilyClient: tavilyClient,
+		limiter:      limiter,
+	}, nil
+}
+
+// RunOptions 运行选项
+type RunOptions struct {
+	UserID        int
+	Domains       []string
+	Persona       string
+	ProgressCallback func(status string, progress int)
+}
+
+// Run 执行一次报告生成任务
+func (e *Engine) Run(ctx context.Context, opts RunOptions) error {
+	logger.Log.Infof("开始为用户 [%d] 生成报告，包含 %d 个领域", opts.UserID, len(opts.Domains))
+	if opts.ProgressCallback != nil {
+		opts.ProgressCallback("starting", 0)
+	}
+
+	if len(opts.Domains) == 0 {
+		return fmt.Errorf("no domains provided")
+	}
+
+	// 创建本次运行记录
+	var runID int
+	if e.store != nil {
+		rid, err := e.store.CreateRun()
+		if err != nil {
+			logger.Log.Errorf("无法创建运行记录: %v", err)
+		} else {
+			runID = rid
+		}
+	}
 
 	var domainReports []dm.DomainReport
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	// 用于统计总文章数
-	var totalArticles int
-
-	// 5. 初始化 Tavily 客户端
-	tavilyClient := tavily.NewClient(cfg.TavilyAPIKey)
-
-	// 计算日期范围 (最近 3 天)
 	now := time.Now()
 	endDate := now.Format(time.DateOnly)
 	startDate := now.AddDate(0, 0, -3).Format(time.DateOnly)
 
-	// 6. 遍历领域进行搜索和处理
-	// 这是一个串行过程还是并行？为了避免并发过高触发 LLM/Tavily 限制，
-	// 我们可以对 Domain 进行并行，但控制并发数。这里简单起见，使用 waitgroup。
+	totalDomains := len(opts.Domains)
+	completedDomains := 0
 
-	for _, domain := range cfg.Domains {
+	for _, domain := range opts.Domains {
 		wg.Add(1)
 		go func(domain string) {
 			defer wg.Done()
-			logger.Log.Infof("正在处理领域: %s", domain)
-
-			// 6.1 搜索文章 (请求更多结果以确保有足够的高质量文章)
+			
+			// 1. 搜索
 			req := tavily.SearchRequest{
 				Query:             domain,
 				Topic:             "news",
-				MaxResults:        10, // 增加抓取数量，确保至少有 5 篇可用
+				MaxResults:        10,
 				StartDate:         startDate,
 				EndDate:           endDate,
 				IncludeRawContent: false,
 			}
 
-			resp, err := tavilyClient.Search(req)
+			resp, err := e.tavilyClient.Search(req)
 			if err != nil {
 				logger.Log.Errorf("搜索领域失败 [%s]: %v", domain, err)
 				return
 			}
 
-			// 6.2 抓取正文
+			// 2. 抓取正文
 			var validArticles []dm.Article
 			for _, item := range resp.Results {
-				// 简单的去重或过滤逻辑可以在这里添加
 				content := item.Content
-
-				// 尝试获取正文，如果摘要太短
 				if len(content) < 500 {
 					fetched, err := fetchAndCleanContent(item.URL)
 					if err == nil && len(fetched) > len(content) {
 						content = fetched
 					}
 				}
-
-				// 截断过长内容
 				if len(content) > 5000 {
 					content = content[:5000]
 				}
-
-				if len(content) > 100 { // 只有内容足够才算有效
+				if len(content) > 100 {
 					validArticles = append(validArticles, dm.Article{
 						Title:   item.Title,
 						Link:    item.URL,
@@ -178,8 +146,7 @@ func main() {
 						Content: content,
 					})
 				}
-
-				if len(validArticles) >= 6 { // 只要前 6 篇优质文章即可
+				if len(validArticles) >= 6 {
 					break
 				}
 			}
@@ -189,64 +156,49 @@ func main() {
 				return
 			}
 
-			// 6.3 生成领域报告
-			report, err := generateDomainReport(ctx, chatModel, domain, validArticles, limiter)
+			// 3. 生成领域报告
+			report, err := generateDomainReport(ctx, e.chatModel, domain, validArticles, e.limiter)
 			if err != nil {
 				logger.Log.Errorf("生成领域报告失败 [%s]: %v", domain, err)
 				return
 			}
-			report.Articles = validArticles // 关联原文引用
+			report.Articles = validArticles
 
 			// 保存到数据库
-			if store != nil && runID > 0 {
-				if err := store.SaveDomainReport(runID, report); err != nil {
+			if e.store != nil && runID > 0 {
+				if err := e.store.SaveDomainReport(runID, report); err != nil {
 					logger.Log.Errorf("保存领域报告失败 [%s]: %v", domain, err)
-				} else {
-					logger.Log.Infof("领域报告已保存到数据库 [%s]", domain)
 				}
 			}
 
 			mu.Lock()
 			domainReports = append(domainReports, *report)
-			totalArticles += len(validArticles)
+			completedDomains++
+			progress := 10 + int(float64(completedDomains)/float64(totalDomains)*70) // 10% -> 80%
+			if opts.ProgressCallback != nil {
+				opts.ProgressCallback(fmt.Sprintf("processed domain: %s", domain), progress)
+			}
 			mu.Unlock()
-			logger.Log.Infof("领域 [%s] 处理完成 (Score: %d)", domain, report.Score)
 		}(domain)
 	}
 
 	wg.Wait()
 
-	// 7. 排序：按领域评分从高到低
+	if len(domainReports) == 0 {
+		return fmt.Errorf("no domain reports generated")
+	}
+
+	// 排序
 	sort.Slice(domainReports, func(i, j int) bool {
 		return domainReports[i].Score > domainReports[j].Score
 	})
 
-	// 8. 深度解读
-	var deepAnalysis *dm.DeepAnalysisResult
-	
-	// Get users with persona from DB
-	var users []*ent.User
-	if store != nil {
-		var err error
-		users, err = store.GetUsersWithPersona()
-		if err != nil {
-			logger.Log.Errorf("无法获取用户画像: %v", err)
-		}
+	// 4. 深度解读
+	if opts.ProgressCallback != nil {
+		opts.ProgressCallback("generating deep analysis", 85)
 	}
 
-	// 如果配置中还有 UserPersona，也可以作为一个备用（或者根据需求完全移除）
-	// User requirement: "Instead of reading from config ... If no info, refuse to generate article."
-	// So we strictly rely on DB users.
-	
-	if len(users) == 0 {
-		logger.Log.Warn("未找到配置了画像的用户，跳过深度解读生成 (或拒绝生成)")
-		// If strict refusal is needed:
-		// return
-		// But we have already generated domain reports. I will just skip Deep Analysis.
-	} else if len(domainReports) > 0 {
-		logger.Log.Info("正在生成全局深度解读报告...")
-
-		// 构造输入：使用各领域的 Summary 和 Trends
+	if opts.Persona != "" {
 		var sb strings.Builder
 		for _, report := range domainReports {
 			fmt.Fprintf(&sb, "## 领域：%s (评分: %d)\n", report.DomainName, report.Score)
@@ -254,60 +206,30 @@ func main() {
 			fmt.Fprintf(&sb, "### 趋势\n%s\n", report.Trends)
 			fmt.Fprintf(&sb, "### 关键事件\n- %s\n\n", strings.Join(report.KeyEvents, "\n- "))
 		}
-		
-		reportContent := sb.String()
 
-		for _, u := range users {
-			if u.Persona == "" {
-				continue
-			}
-			logger.Log.Infof("为用户 [%s] 生成深度解读...", u.Username)
-			
-			analysis, err := deepInterpretReport(ctx, chatModel, reportContent, u.Persona, limiter)
-			if err != nil {
-				logger.Log.Errorf("用户 [%s] 深度解读失败: %v", u.Username, err)
-				continue
-			}
-			
-			// 保存到数据库
-			if store != nil && runID > 0 {
-				if err := store.SaveDeepAnalysis(runID, u.ID, analysis); err != nil {
+		analysis, err := deepInterpretReport(ctx, e.chatModel, sb.String(), opts.Persona, e.limiter)
+		if err != nil {
+			logger.Log.Errorf("深度解读失败: %v", err)
+		} else {
+			if e.store != nil && runID > 0 {
+				if err := e.store.SaveDeepAnalysis(runID, opts.UserID, analysis); err != nil {
 					logger.Log.Errorf("保存深度解读失败: %v", err)
-				} else {
-					logger.Log.Info("深度解读报告已保存到数据库")
 				}
-				
-				// Optional: Update run title based on the first analysis
-				if deepAnalysis == nil && analysis.Title != "" {
-					if err := store.UpdateRunTitle(runID, analysis.Title); err != nil {
-						logger.Log.Errorf("更新报告标题失败: %v", err)
-					}
+				if analysis.Title != "" {
+					e.store.UpdateRunTitle(runID, analysis.Title)
 				}
-			}
-			
-			// Keep the last one for HTML generation (or first one)
-			if deepAnalysis == nil {
-				deepAnalysis = analysis
 			}
 		}
 	}
 
-	// 9. 生成 HTML
-	data := HTMLData{
-		Date:          time.Now().Format("2006-01-02"),
-		Count:         totalArticles,
-		DomainReports: domainReports,
-		DeepAnalysis:  deepAnalysis,
+	if opts.ProgressCallback != nil {
+		opts.ProgressCallback("completed", 100)
 	}
-
-	if err := generateHTML(data); err != nil {
-		logger.Log.Fatalf("生成 HTML 失败: %v", err)
-	}
-
-	logger.Log.Info("✅ 领域雷达早报生成完毕")
+	return nil
 }
 
-// fetchAndCleanContent 抓取 URL 并提取核心文本
+// 辅助函数 (从 main.go 复制并适配)
+
 func fetchAndCleanContent(url string) (string, error) {
 	article, err := readability.FromURL(url, 30*time.Second)
 	if err != nil {
@@ -316,9 +238,7 @@ func fetchAndCleanContent(url string) (string, error) {
 	return article.TextContent, nil
 }
 
-// generateDomainReport 生成单个领域的总结报告
 func generateDomainReport(ctx context.Context, cm model.ChatModel, domain string, articles []dm.Article, limiter *rate.Limiter) (*dm.DomainReport, error) {
-	// 构造 Prompt
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("以下是关于领域【%s】的一组新闻文章，请阅读并总结：\n\n", domain))
 	for i, art := range articles {
@@ -335,7 +255,6 @@ func generateDomainReport(ctx context.Context, cm model.ChatModel, domain string
 }
 评分说明：score 为 1-10 的整数，代表该领域今日的重要程度和关注价值。`
 
-	// 调用 LLM (带重试机制)
 	maxRetries := 3
 	baseDelay := 2 * time.Second
 	var lastErr error
@@ -382,9 +301,7 @@ func generateDomainReport(ctx context.Context, cm model.ChatModel, domain string
 	return nil, lastErr
 }
 
-// deepInterpretReport 全局深度解读报告
 func deepInterpretReport(ctx context.Context, cm model.ChatModel, content string, userPersona string, limiter *rate.Limiter) (*dm.DeepAnalysisResult, error) {
-	// 复用之前的逻辑，只是 Prompt 略微调整以适应输入变化
 	promptTpl := `Role: 资深技术顾问与个人发展战略专家
 Context
 用户画像：%s
@@ -404,7 +321,6 @@ Instructions
 输入的新闻总结数据：
 %s`
 
-	// ... (代码结构与之前类似，略作简化以适应单文件)
 	maxRetries := 3
 	baseDelay := 2 * time.Second
 	var lastErr error
@@ -421,7 +337,6 @@ Instructions
 
 		resp, err := cm.Generate(ctx, messages)
 		if err != nil {
-			// 简单的错误处理逻辑
 			if strings.Contains(err.Error(), "429") {
 				time.Sleep(baseDelay * time.Duration(1<<i))
 				continue
@@ -442,39 +357,4 @@ Instructions
 		return &result, nil
 	}
 	return nil, fmt.Errorf("failed after retries: %v", lastErr)
-}
-
-// generateHTML 渲染模板
-func generateHTML(data HTMLData) error {
-	t, err := template.ParseFS(templateFS, "resource/index.html")
-	if err != nil {
-		return fmt.Errorf("解析模板失败: %w", err)
-	}
-
-	outputPath := "index.html"
-	// 如果在根目录运行且 output 目录存在，则输出到 output 目录
-	if info, err := os.Stat("output"); err == nil && info.IsDir() {
-		outputPath = filepath.Join("output", "index.html")
-	}
-
-	// 确保目标目录存在
-	dir := filepath.Dir(outputPath)
-	if dir != "." {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("创建目录失败 [%s]: %w", dir, err)
-		}
-	}
-
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("创建文件失败 [%s]: %w", outputPath, err)
-	}
-	defer f.Close()
-
-	if err := t.Execute(f, data); err != nil {
-		return fmt.Errorf("渲染模板失败: %w", err)
-	}
-
-	logger.Log.Infof("报告已保存至: %s", outputPath)
-	return nil
 }

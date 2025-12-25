@@ -40,6 +40,17 @@ service Display {
       body: "*"
     };
   }
+  rpc TriggerReport (TriggerReportReq) returns (TriggerReportReply) {
+    option (google.api.http) = {
+      post: "/v1/report/trigger"
+      body: "*"
+    };
+  }
+  rpc GetTaskStatus (GetTaskStatusReq) returns (GetTaskStatusReply) {
+    option (google.api.http) = {
+      get: "/v1/task/{task_id}"
+    };
+  }
 }
 
 message RegisterReq {
@@ -120,12 +131,31 @@ message GetProfileReq {}
 message GetProfileReply {
   string username = 1;
   string persona = 2;
+  repeated string domains = 3;
 }
 
 message UpdateProfileReq {
   string persona = 1;
+  repeated string domains = 2;
 }
 
 message UpdateProfileReply {
   bool success = 1;
+}
+
+message TriggerReportReq {}
+
+message TriggerReportReply {
+  string task_id = 1;
+  string message = 2;
+}
+
+message GetTaskStatusReq {
+  string task_id = 1;
+}
+
+message GetTaskStatusReply {
+  string status = 1; // "pending", "running", "completed", "failed"
+  int32 progress = 2; // 0-100
+  string message = 3;
 }

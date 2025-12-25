@@ -4231,6 +4231,8 @@ type UserMutation struct {
 	username      *string
 	password_hash *string
 	persona       *string
+	domains       *[]string
+	appenddomains []string
 	created_at    *time.Time
 	clearedFields map[string]struct{}
 	done          bool
@@ -4463,6 +4465,71 @@ func (m *UserMutation) ResetPersona() {
 	delete(m.clearedFields, user.FieldPersona)
 }
 
+// SetDomains sets the "domains" field.
+func (m *UserMutation) SetDomains(s []string) {
+	m.domains = &s
+	m.appenddomains = nil
+}
+
+// Domains returns the value of the "domains" field in the mutation.
+func (m *UserMutation) Domains() (r []string, exists bool) {
+	v := m.domains
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDomains returns the old "domains" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldDomains(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDomains is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDomains requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDomains: %w", err)
+	}
+	return oldValue.Domains, nil
+}
+
+// AppendDomains adds s to the "domains" field.
+func (m *UserMutation) AppendDomains(s []string) {
+	m.appenddomains = append(m.appenddomains, s...)
+}
+
+// AppendedDomains returns the list of values that were appended to the "domains" field in this mutation.
+func (m *UserMutation) AppendedDomains() ([]string, bool) {
+	if len(m.appenddomains) == 0 {
+		return nil, false
+	}
+	return m.appenddomains, true
+}
+
+// ClearDomains clears the value of the "domains" field.
+func (m *UserMutation) ClearDomains() {
+	m.domains = nil
+	m.appenddomains = nil
+	m.clearedFields[user.FieldDomains] = struct{}{}
+}
+
+// DomainsCleared returns if the "domains" field was cleared in this mutation.
+func (m *UserMutation) DomainsCleared() bool {
+	_, ok := m.clearedFields[user.FieldDomains]
+	return ok
+}
+
+// ResetDomains resets all changes to the "domains" field.
+func (m *UserMutation) ResetDomains() {
+	m.domains = nil
+	m.appenddomains = nil
+	delete(m.clearedFields, user.FieldDomains)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UserMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -4533,7 +4600,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
@@ -4542,6 +4609,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.persona != nil {
 		fields = append(fields, user.FieldPersona)
+	}
+	if m.domains != nil {
+		fields = append(fields, user.FieldDomains)
 	}
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
@@ -4560,6 +4630,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.PasswordHash()
 	case user.FieldPersona:
 		return m.Persona()
+	case user.FieldDomains:
+		return m.Domains()
 	case user.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -4577,6 +4649,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldPasswordHash(ctx)
 	case user.FieldPersona:
 		return m.OldPersona(ctx)
+	case user.FieldDomains:
+		return m.OldDomains(ctx)
 	case user.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -4608,6 +4682,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPersona(v)
+		return nil
+	case user.FieldDomains:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDomains(v)
 		return nil
 	case user.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -4649,6 +4730,9 @@ func (m *UserMutation) ClearedFields() []string {
 	if m.FieldCleared(user.FieldPersona) {
 		fields = append(fields, user.FieldPersona)
 	}
+	if m.FieldCleared(user.FieldDomains) {
+		fields = append(fields, user.FieldDomains)
+	}
 	return fields
 }
 
@@ -4666,6 +4750,9 @@ func (m *UserMutation) ClearField(name string) error {
 	case user.FieldPersona:
 		m.ClearPersona()
 		return nil
+	case user.FieldDomains:
+		m.ClearDomains()
+		return nil
 	}
 	return fmt.Errorf("unknown User nullable field %s", name)
 }
@@ -4682,6 +4769,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldPersona:
 		m.ResetPersona()
+		return nil
+	case user.FieldDomains:
+		m.ResetDomains()
 		return nil
 	case user.FieldCreatedAt:
 		m.ResetCreatedAt()

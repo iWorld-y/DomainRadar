@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/config"
-	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/model"
 	"github.com/iWorld-y/domain_radar/app/common/ent"
 	"github.com/iWorld-y/domain_radar/app/common/ent/user"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/model"
 	_ "github.com/lib/pq"
 )
 

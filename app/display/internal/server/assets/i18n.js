@@ -51,7 +51,13 @@ const translations = {
         "back_dashboard": "Back to Dashboard",
         "msg_profile_saved": "Profile saved successfully!",
         "msg_profile_save_fail": "Failed to save profile",
-        "msg_profile_load_fail": "Failed to load profile"
+        "msg_profile_load_fail": "Failed to load profile",
+        "domains_label": "Interested Domains",
+        "domains_placeholder": "One domain per line (e.g. AI, Cloud Computing)",
+        "generate_report_btn": "Generate Report",
+        "generating": "Generating...",
+        "task_failed": "Task failed: ",
+        "task_completed": "Report generated successfully!"
     },
     zh: {
         "title": "领域雷达 - 登录",
@@ -105,7 +111,13 @@ const translations = {
         "back_dashboard": "返回仪表盘",
         "msg_profile_saved": "个人资料保存成功！",
         "msg_profile_save_fail": "保存失败",
-        "msg_profile_load_fail": "加载个人资料失败"
+        "msg_profile_load_fail": "加载个人资料失败",
+        "domains_label": "感兴趣的领域",
+        "domains_placeholder": "每行一个领域（例如：人工智能、云计算）",
+        "generate_report_btn": "生成日报",
+        "generating": "生成中...",
+        "task_failed": "任务失败: ",
+        "task_completed": "日报生成成功！"
     }
 };
 

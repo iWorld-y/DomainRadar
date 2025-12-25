@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/iWorld-y/domain_radar/app/common/ent/predicate"
 	"github.com/iWorld-y/domain_radar/app/common/ent/user"
@@ -74,6 +75,24 @@ func (_u *UserUpdate) SetNillablePersona(v *string) *UserUpdate {
 // ClearPersona clears the value of the "persona" field.
 func (_u *UserUpdate) ClearPersona() *UserUpdate {
 	_u.mutation.ClearPersona()
+	return _u
+}
+
+// SetDomains sets the "domains" field.
+func (_u *UserUpdate) SetDomains(v []string) *UserUpdate {
+	_u.mutation.SetDomains(v)
+	return _u
+}
+
+// AppendDomains appends value to the "domains" field.
+func (_u *UserUpdate) AppendDomains(v []string) *UserUpdate {
+	_u.mutation.AppendDomains(v)
+	return _u
+}
+
+// ClearDomains clears the value of the "domains" field.
+func (_u *UserUpdate) ClearDomains() *UserUpdate {
+	_u.mutation.ClearDomains()
 	return _u
 }
 
@@ -150,6 +169,17 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.PersonaCleared() {
 		_spec.ClearField(user.FieldPersona, field.TypeString)
 	}
+	if value, ok := _u.mutation.Domains(); ok {
+		_spec.SetField(user.FieldDomains, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDomains(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, user.FieldDomains, value)
+		})
+	}
+	if _u.mutation.DomainsCleared() {
+		_spec.ClearField(user.FieldDomains, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
 	}
@@ -220,6 +250,24 @@ func (_u *UserUpdateOne) SetNillablePersona(v *string) *UserUpdateOne {
 // ClearPersona clears the value of the "persona" field.
 func (_u *UserUpdateOne) ClearPersona() *UserUpdateOne {
 	_u.mutation.ClearPersona()
+	return _u
+}
+
+// SetDomains sets the "domains" field.
+func (_u *UserUpdateOne) SetDomains(v []string) *UserUpdateOne {
+	_u.mutation.SetDomains(v)
+	return _u
+}
+
+// AppendDomains appends value to the "domains" field.
+func (_u *UserUpdateOne) AppendDomains(v []string) *UserUpdateOne {
+	_u.mutation.AppendDomains(v)
+	return _u
+}
+
+// ClearDomains clears the value of the "domains" field.
+func (_u *UserUpdateOne) ClearDomains() *UserUpdateOne {
+	_u.mutation.ClearDomains()
 	return _u
 }
 
@@ -325,6 +373,17 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if _u.mutation.PersonaCleared() {
 		_spec.ClearField(user.FieldPersona, field.TypeString)
+	}
+	if value, ok := _u.mutation.Domains(); ok {
+		_spec.SetField(user.FieldDomains, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDomains(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, user.FieldDomains, value)
+		})
+	}
+	if _u.mutation.DomainsCleared() {
+		_spec.ClearField(user.FieldDomains, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

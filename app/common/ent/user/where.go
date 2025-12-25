@@ -279,6 +279,16 @@ func PersonaContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldPersona, v))
 }
 
+// DomainsIsNil applies the IsNil predicate on the "domains" field.
+func DomainsIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldDomains))
+}
+
+// DomainsNotNil applies the NotNil predicate on the "domains" field.
+func DomainsNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldDomains))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))

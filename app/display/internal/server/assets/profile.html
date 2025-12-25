@@ -62,6 +62,11 @@
                 </p>
             </div>
             
+            <div class="form-group">
+                <label for="domains" data-i18n="domains_label">Interested Domains</label>
+                <textarea id="domains" class="input" placeholder="One domain per line..." data-i18n="domains_placeholder" style="min-height: 150px;"></textarea>
+            </div>
+
             <div class="mt-4 text-center">
                 <button onclick="saveProfile()" class="btn btn-primary" data-i18n="save_btn">Save</button>
             </div>
@@ -108,6 +113,7 @@
                 const data = await res.json();
                 document.getElementById('username').value = data.username;
                 document.getElementById('persona').value = data.persona || '';
+                document.getElementById('domains').value = (data.domains || []).join('\n');
             } catch (e) {
                 showMessage(t("msg_profile_load_fail"), "error");
             }
@@ -116,6 +122,7 @@
         async function saveProfile() {
             const token = localStorage.getItem('token');
             const persona = document.getElementById('persona').value;
+            const domains = document.getElementById('domains').value.split('\n').map(d => d.trim()).filter(d => d);
 
             try {
                 const res = await fetch('/v1/profile', {
@@ -124,7 +131,7 @@
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ persona: persona })
+                    body: JSON.stringify({ persona: persona, domains: domains })
                 });
 
                 if (res.status === 401) {

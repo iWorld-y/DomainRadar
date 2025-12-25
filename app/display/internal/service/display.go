@@ -2,27 +2,69 @@ package service
 
 import (
 	"context"
+	"sync"
 
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/auth/jwt"
 	jwtv5 "github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	v1 "github.com/iWorld-y/domain_radar/api/proto/display/v1"
 	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
+	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/engine"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/storage"
 )
+
+type TaskStatus struct {
+	Status   string // "pending", "running", "completed", "failed"
+	Progress int
+	Message  string
+}
 
 type DisplayService struct {
 	v1.UnimplementedDisplayServer
 	ucUser   *biz.UserUseCase
 	ucReport *biz.ReportUseCase
 	log      *log.Helper
+
+	// Task Management
+	tasks  sync.Map // map[string]*TaskStatus
+	engine *engine.Engine
 }
 
-func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, logger log.Logger) *DisplayService {
+func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, logger log.Logger, c *conf.Data) *DisplayService {
+	// Initialize Engine (using config from Data config if possible, or load separately)
+	// 这里为了简化，假设我们能从某个地方加载到 domain_radar 的配置
+	// 实际上更好的做法是将 domain_radar 的配置集成到 display 的配置中
+	// 或者直接硬编码路径加载
+
+	drCfg, err := config.LoadConfig("configs/config.yaml") // 假设路径
+	if err != nil {
+		log.NewHelper(logger).Errorf("Failed to load domain_radar config: %v", err)
+	}
+
+	var store *storage.Storage
+	var eng *engine.Engine
+
+	if drCfg != nil {
+		store, err = storage.NewStorage(drCfg.DB)
+		if err != nil {
+			log.NewHelper(logger).Errorf("Failed to init storage for engine: %v", err)
+		}
+
+		eng, err = engine.NewEngine(drCfg, store)
+		if err != nil {
+			log.NewHelper(logger).Errorf("Failed to init engine: %v", err)
+		}
+	}
+
 	return &DisplayService{
 		ucUser:   ucUser,
 		ucReport: ucReport,
 		log:      log.NewHelper(logger),
+		engine:   eng,
 	}
 }
 
@@ -156,7 +198,7 @@ func (s *DisplayService) GetProfile(ctx context.Context, req *v1.GetProfileReq) 
 	if err != nil {
 		return nil, err
 	}
-	return &v1.GetProfileReply{Username: u.Username, Persona: u.Persona}, nil
+	return &v1.GetProfileReply{Username: u.Username, Persona: u.Persona, Domains: u.Domains}, nil
 }
 
 func (s *DisplayService) UpdateProfile(ctx context.Context, req *v1.UpdateProfileReq) (*v1.UpdateProfileReply, error) {
@@ -173,9 +215,80 @@ func (s *DisplayService) UpdateProfile(ctx context.Context, req *v1.UpdateProfil
 		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid username in token")
 	}
 
-	err := s.ucUser.UpdateProfile(ctx, username, req.Persona)
+	err := s.ucUser.UpdateProfile(ctx, username, req.Persona, req.Domains)
 	if err != nil {
 		return nil, err
 	}
 	return &v1.UpdateProfileReply{Success: true}, nil
+}
+
+func (s *DisplayService) TriggerReport(ctx context.Context, req *v1.TriggerReportReq) (*v1.TriggerReportReply, error) {
+	if s.engine == nil {
+		return nil, errors.InternalServer("ENGINE_NOT_INIT", "domain radar engine not initialized")
+	}
+
+	claims, ok := jwt.FromContext(ctx)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "missing jwt token")
+	}
+	mapClaims, ok := claims.(jwtv5.MapClaims)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid jwt token")
+	}
+	username, ok := mapClaims["username"].(string)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid username in token")
+	}
+
+	u, err := s.ucUser.GetProfile(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(u.Domains) == 0 {
+		return nil, errors.BadRequest("NO_DOMAINS", "please configure interested domains in profile first")
+	}
+
+	taskID := uuid.New().String()
+	s.tasks.Store(taskID, &TaskStatus{Status: "pending", Progress: 0, Message: "Initializing..."})
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.tasks.Store(taskID, &TaskStatus{Status: "failed", Progress: 100, Message: "Internal Panic"})
+			}
+		}()
+
+		s.tasks.Store(taskID, &TaskStatus{Status: "running", Progress: 5, Message: "Starting..."})
+
+		err := s.engine.Run(context.Background(), engine.RunOptions{
+			UserID:  u.ID,
+			Domains: u.Domains,
+			Persona: u.Persona,
+			ProgressCallback: func(status string, progress int) {
+				s.tasks.Store(taskID, &TaskStatus{Status: "running", Progress: progress, Message: status})
+			},
+		})
+
+		if err != nil {
+			s.tasks.Store(taskID, &TaskStatus{Status: "failed", Progress: 100, Message: err.Error()})
+		} else {
+			s.tasks.Store(taskID, &TaskStatus{Status: "completed", Progress: 100, Message: "Completed"})
+		}
+	}()
+
+	return &v1.TriggerReportReply{TaskId: taskID, Message: "Task started"}, nil
+}
+
+func (s *DisplayService) GetTaskStatus(ctx context.Context, req *v1.GetTaskStatusReq) (*v1.GetTaskStatusReply, error) {
+	val, ok := s.tasks.Load(req.TaskId)
+	if !ok {
+		return nil, errors.NotFound("TASK_NOT_FOUND", "task not found")
+	}
+	status := val.(*TaskStatus)
+	return &v1.GetTaskStatusReply{
+		Status:   status.Status,
+		Progress: int32(status.Progress),
+		Message:  status.Message,
+	}, nil
 }

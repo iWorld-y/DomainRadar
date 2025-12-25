@@ -46,6 +46,12 @@ func (_c *UserCreate) SetNillablePersona(v *string) *UserCreate {
 	return _c
 }
 
+// SetDomains sets the "domains" field.
+func (_c *UserCreate) SetDomains(v []string) *UserCreate {
+	_c.mutation.SetDomains(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UserCreate) SetCreatedAt(v time.Time) *UserCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -161,6 +167,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Persona(); ok {
 		_spec.SetField(user.FieldPersona, field.TypeString, value)
 		_node.Persona = value
+	}
+	if value, ok := _c.mutation.Domains(); ok {
+		_spec.SetField(user.FieldDomains, field.TypeJSON, value)
+		_node.Domains = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
