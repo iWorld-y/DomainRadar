@@ -20,42 +20,17 @@ import (
 
 	"github.com/iWorld-y/domain_radar/src/internal/config"
 	"github.com/iWorld-y/domain_radar/src/internal/logger"
+	dm "github.com/iWorld-y/domain_radar/src/internal/model"
+	"github.com/iWorld-y/domain_radar/src/internal/storage"
 	"github.com/iWorld-y/domain_radar/src/internal/tavily"
 )
-
-// Article 基础文章信息
-type Article struct {
-	Title   string
-	Link    string
-	Source  string
-	PubDate string
-	Content string // 临时存储用于 LLM 分析，不一定展示
-}
-
-// DomainReport 领域报告结构体
-type DomainReport struct {
-	DomainName string
-	Overview   string    `json:"overview"`   // 领域综述
-	KeyEvents  []string  `json:"key_events"` // 关键事件
-	Trends     string    `json:"trends"`     // 趋势分析
-	Score      int       `json:"score"`      // 领域热度评分
-	Articles   []Article // 引用文章列表
-}
-
-// DeepAnalysisResult 全局深度解读
-type DeepAnalysisResult struct {
-	MacroTrends   string   `json:"macro_trends"`
-	Opportunities string   `json:"opportunities"`
-	Risks         string   `json:"risks"`
-	ActionGuides  []string `json:"action_guides"`
-}
 
 // HTMLData 用于模板渲染的数据
 type HTMLData struct {
 	Date          string
 	Count         int // 总阅读文章数
-	DomainReports []DomainReport
-	DeepAnalysis  *DeepAnalysisResult
+	DomainReports []dm.DomainReport
+	DeepAnalysis  *dm.DeepAnalysisResult
 }
 
 func main() {
@@ -81,6 +56,22 @@ func main() {
 
 	ctx := context.Background()
 
+	// 初始化数据库连接
+	// 如果配置了数据库信息，则尝试连接
+	var store *storage.Storage
+	if cfg.DB.Host != "" {
+		s, err := storage.NewStorage(cfg.DB)
+		if err != nil {
+			logger.Log.Errorf("无法连接数据库: %v. 将仅生成 HTML 文件。", err)
+		} else {
+			store = s
+			defer store.Close()
+			logger.Log.Info("已成功连接到数据库")
+		}
+	} else {
+		logger.Log.Info("未配置数据库信息，跳过数据库连接")
+	}
+
 	// 3. 初始化 LLM
 	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		BaseURL: cfg.LLM.BaseURL,
@@ -97,7 +88,7 @@ func main() {
 	limiter := rate.NewLimiter(limit, burst)
 	logger.Log.Infof("限流器已配置: Limit=%.2f req/s, Burst=%d", limit, burst)
 
-	var domainReports []DomainReport
+	var domainReports []dm.DomainReport
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
@@ -139,7 +130,7 @@ func main() {
 			}
 
 			// 6.2 抓取正文
-			var validArticles []Article
+			var validArticles []dm.Article
 			for _, item := range resp.Results {
 				// 简单的去重或过滤逻辑可以在这里添加
 				content := item.Content
@@ -158,7 +149,7 @@ func main() {
 				}
 
 				if len(content) > 100 { // 只有内容足够才算有效
-					validArticles = append(validArticles, Article{
+					validArticles = append(validArticles, dm.Article{
 						Title:   item.Title,
 						Link:    item.URL,
 						Source:  domain,
@@ -185,6 +176,15 @@ func main() {
 			}
 			report.Articles = validArticles // 关联原文引用
 
+			// 保存到数据库
+			if store != nil {
+				if err := store.SaveDomainReport(report); err != nil {
+					logger.Log.Errorf("保存领域报告失败 [%s]: %v", domain, err)
+				} else {
+					logger.Log.Infof("领域报告已保存到数据库 [%s]", domain)
+				}
+			}
+
 			mu.Lock()
 			domainReports = append(domainReports, *report)
 			totalArticles += len(validArticles)
@@ -201,7 +201,7 @@ func main() {
 	})
 
 	// 8. 深度解读
-	var deepAnalysis *DeepAnalysisResult
+	var deepAnalysis *dm.DeepAnalysisResult
 	if cfg.UserPersona != "" && len(domainReports) > 0 {
 		logger.Log.Info("正在生成全局深度解读报告...")
 
@@ -220,6 +220,15 @@ func main() {
 		} else {
 			deepAnalysis = analysis
 			logger.Log.Info("全局深度解读报告生成完成")
+
+			// 保存到数据库
+			if store != nil {
+				if err := store.SaveDeepAnalysis(deepAnalysis); err != nil {
+					logger.Log.Errorf("保存深度解读失败: %v", err)
+				} else {
+					logger.Log.Info("深度解读报告已保存到数据库")
+				}
+			}
 		}
 	}
 
@@ -248,7 +257,7 @@ func fetchAndCleanContent(url string) (string, error) {
 }
 
 // generateDomainReport 生成单个领域的总结报告
-func generateDomainReport(ctx context.Context, cm model.ChatModel, domain string, articles []Article, limiter *rate.Limiter) (*DomainReport, error) {
+func generateDomainReport(ctx context.Context, cm model.ChatModel, domain string, articles []dm.Article, limiter *rate.Limiter) (*dm.DomainReport, error) {
 	// 构造 Prompt
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("以下是关于领域【%s】的一组新闻文章，请阅读并总结：\n\n", domain))
@@ -298,7 +307,7 @@ func generateDomainReport(ctx context.Context, cm model.ChatModel, domain string
 		cleanContent = strings.TrimPrefix(cleanContent, "```")
 		cleanContent = strings.TrimSuffix(cleanContent, "```")
 
-		var report DomainReport
+		var report dm.DomainReport
 		if err := json.Unmarshal([]byte(cleanContent), &report); err != nil {
 			lastErr = err
 			if i < maxRetries {
@@ -314,7 +323,7 @@ func generateDomainReport(ctx context.Context, cm model.ChatModel, domain string
 }
 
 // deepInterpretReport 全局深度解读报告
-func deepInterpretReport(ctx context.Context, cm model.ChatModel, content string, userPersona string, limiter *rate.Limiter) (*DeepAnalysisResult, error) {
+func deepInterpretReport(ctx context.Context, cm model.ChatModel, content string, userPersona string, limiter *rate.Limiter) (*dm.DeepAnalysisResult, error) {
 	// 复用之前的逻辑，只是 Prompt 略微调整以适应输入变化
 	promptTpl := `Role: 资深技术顾问与个人发展战略专家
 Context
@@ -364,7 +373,7 @@ Instructions
 		cleanContent = strings.TrimPrefix(cleanContent, "```")
 		cleanContent = strings.TrimSuffix(cleanContent, "```")
 
-		var result DeepAnalysisResult
+		var result dm.DeepAnalysisResult
 		if err := json.Unmarshal([]byte(cleanContent), &result); err != nil {
 			lastErr = err
 			continue
@@ -498,9 +507,9 @@ func generateHTML(data HTMLData) error {
                 <div class="analysis-section section-actions">
                     <h3>💡 行动指南</h3>
                     <ul>
-                    {{range .DeepAnalysis.ActionGuides}}
+                        {{range .DeepAnalysis.ActionGuides}}
                         <li>{{.}}</li>
-                    {{end}}
+                        {{end}}
                     </ul>
                 </div>
             </div>
@@ -511,43 +520,36 @@ func generateHTML(data HTMLData) error {
         <div class="domain-card">
             <div class="domain-header">
                 <div class="domain-title">{{.DomainName}}</div>
-                <div class="domain-score {{if ge .Score 8}}score-high{{end}}">热度: {{.Score}}</div>
+                <div class="domain-score {{if ge .Score 7}}score-high{{end}}">热度: {{.Score}}/10</div>
             </div>
             
             <div class="domain-content">
-                <div class="main-col">
-                    <div class="overview-section">
-                        <h4>综述与动态</h4>
-                        <div class="md-content" data-raw="{{.Overview}}"></div>
-                    </div>
-                    <div class="overview-section" style="margin-top: 20px;">
-                        <h4>趋势分析</h4>
-                        <div class="md-content" data-raw="{{.Trends}}"></div>
-                    </div>
+                <div class="overview-section">
+                    <h4>📝 综述</h4>
+                    <div class="markdown-content" id="overview-{{.DomainName}}"></div>
+                    <div style="display:none" class="raw-overview">{{.Overview}}</div>
+                    
+                    <h4>📈 趋势</h4>
+                    <div class="markdown-content" id="trends-{{.DomainName}}"></div>
+                    <div style="display:none" class="raw-trends">{{.Trends}}</div>
                 </div>
-                <div class="side-col">
-                    <div class="overview-section">
-                        <h4>关键事件</h4>
-                        <div class="key-events">
-                            <ul>
-                            {{range .KeyEvents}}
-                                <li>{{.}}</li>
-                            {{end}}
-                            </ul>
-                        </div>
-                    </div>
+                
+                <div class="key-events">
+                    <h4>🔥 关键事件</h4>
+                    <ul>
+                        {{range .KeyEvents}}
+                        <li>{{.}}</li>
+                        {{end}}
+                    </ul>
                 </div>
             </div>
 
             <div class="references">
-                <div class="ref-title">参考来源</div>
+                <div class="ref-title">🔗 参考来源</div>
                 <ul class="ref-list">
-                {{range .Articles}}
-                    <li>
-                        <a href="{{.Link}}" target="_blank">{{.Title}}</a>
-                        <span style="color: #94a3b8; font-size: 0.8em;">({{.PubDate}})</span>
-                    </li>
-                {{end}}
+                    {{range .Articles}}
+                    <li><a href="{{.Link}}" target="_blank">{{.Title}}</a> <span style="color:#94a3b8; font-size: 0.8em">({{ .Source }})</span></li>
+                    {{end}}
                 </ul>
             </div>
         </div>
@@ -555,32 +557,46 @@ func generateHTML(data HTMLData) error {
     </div>
 
     <script>
-        // 渲染 Markdown
-        document.querySelectorAll('.md-content').forEach(el => {
-            el.innerHTML = marked.parse(el.getAttribute('data-raw'));
+        // 解析 Markdown
+        document.addEventListener('DOMContentLoaded', function() {
+            // 渲染深度解读
+            const macroRaw = document.getElementById('raw-macro');
+            if (macroRaw) document.getElementById('macro-trends').innerHTML = marked.parse(macroRaw.textContent);
+            
+            const oppsRaw = document.getElementById('raw-opps');
+            if (oppsRaw) document.getElementById('opps').innerHTML = marked.parse(oppsRaw.textContent);
+            
+            const risksRaw = document.getElementById('raw-risks');
+            if (risksRaw) document.getElementById('risks').innerHTML = marked.parse(risksRaw.textContent);
+
+            // 渲染领域报告
+            const overviews = document.querySelectorAll('.raw-overview');
+            overviews.forEach(el => {
+                const content = el.textContent;
+                el.previousElementSibling.innerHTML = marked.parse(content);
+            });
+
+            const trends = document.querySelectorAll('.raw-trends');
+            trends.forEach(el => {
+                const content = el.textContent;
+                el.previousElementSibling.innerHTML = marked.parse(content);
+            });
         });
-        
-        // 渲染深度解读 Markdown
-        if (document.getElementById('raw-macro')) {
-            document.getElementById('macro-trends').innerHTML = marked.parse(document.getElementById('raw-macro').innerText);
-            document.getElementById('opps').innerHTML = marked.parse(document.getElementById('raw-opps').innerText);
-            document.getElementById('risks').innerHTML = marked.parse(document.getElementById('raw-risks').innerText);
-        }
     </script>
 </body>
 </html>
 `
 
-	f, err := os.Create("index.html")
+	t, err := template.New("report").Parse(htmlTpl)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create("output/index.html")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	tmpl, err := template.New("index").Parse(htmlTpl)
-	if err != nil {
-		return err
-	}
-
-	return tmpl.Execute(f, data)
+	return t.Execute(f, data)
 }

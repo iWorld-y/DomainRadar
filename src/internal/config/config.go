@@ -14,6 +14,7 @@ type Config struct {
 	Domains      []string          `yaml:"domains"`
 	Log          LogConfig         `yaml:"log"`
 	Concurrency  ConcurrencyConfig `yaml:"concurrency"`
+	DB           DBConfig          `yaml:"db"`
 }
 
 // LLMConfig LLM 相关配置
@@ -21,6 +22,15 @@ type LLMConfig struct {
 	BaseURL string `yaml:"base_url"`
 	APIKey  string `yaml:"api_key"`
 	Model   string `yaml:"model"`
+}
+
+// DBConfig 数据库相关配置
+type DBConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Name     string `yaml:"name"`
 }
 
 // LogConfig 日志相关配置
