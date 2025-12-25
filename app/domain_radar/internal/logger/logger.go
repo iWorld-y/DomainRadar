@@ -61,7 +61,15 @@ func InitLogger(levelStr string, filePath string) error {
 	// 设置输出：同时输出到控制台和文件
 	writers := []io.Writer{os.Stdout}
 	if filePath != "" {
-		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		// 确保日志目录存在
+		logDir := filepath.Dir(filePath)
+		if logDir != "." {
+			if err := os.MkdirAll(logDir, 0o755); err != nil {
+				return fmt.Errorf("failed to create log directory: %w", err)
+			}
+		}
+
+		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 		if err != nil {
 			return err
 		}

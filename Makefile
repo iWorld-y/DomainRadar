@@ -24,7 +24,7 @@ build:
 
 run: build
 	@echo "正在运行项目..."
-	@cd $(OUTPUT_DIR) && ./$(APP_NAME)
+	@./$(OUTPUT_DIR)/$(APP_NAME) -config configs/config.yaml
 
 api:
 	@echo "正在生成 API 代码..."

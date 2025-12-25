@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -34,10 +36,14 @@ type HTMLData struct {
 }
 
 func main() {
+	// 0. 定义命令行参数
+	configPath := flag.String("config", "configs/config.yaml", "配置文件路径")
+	flag.Parse()
+
 	// 1. 加载配置
-	cfg, err := config.LoadConfig("configs/config.yaml")
+	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
-		log.Fatalf("无法加载配置文件: %v", err)
+		log.Fatalf("无法加载配置文件 [%s]: %v", *configPath, err)
 	}
 
 	// 验证配置
@@ -244,7 +250,7 @@ func main() {
 		logger.Log.Fatalf("生成 HTML 失败: %v", err)
 	}
 
-	logger.Log.Info("✅ 领域雷达早报生成完毕: index.html")
+	logger.Log.Info("✅ 领域雷达早报生成完毕")
 }
 
 // fetchAndCleanContent 抓取 URL 并提取核心文本
@@ -589,14 +595,33 @@ func generateHTML(data HTMLData) error {
 
 	t, err := template.New("report").Parse(htmlTpl)
 	if err != nil {
-		return err
+		return fmt.Errorf("解析模板失败: %w", err)
 	}
 
-	f, err := os.Create("output/index.html")
+	outputPath := "index.html"
+	// 如果在根目录运行且 output 目录存在，则输出到 output 目录
+	if info, err := os.Stat("output"); err == nil && info.IsDir() {
+		outputPath = filepath.Join("output", "index.html")
+	}
+
+	// 确保目标目录存在
+	dir := filepath.Dir(outputPath)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("创建目录失败 [%s]: %w", dir, err)
+		}
+	}
+
+	f, err := os.Create(outputPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("创建文件失败 [%s]: %w", outputPath, err)
 	}
 	defer f.Close()
 
-	return t.Execute(f, data)
+	if err := t.Execute(f, data); err != nil {
+		return fmt.Errorf("渲染模板失败: %w", err)
+	}
+
+	logger.Log.Infof("报告已保存至: %s", outputPath)
+	return nil
 }
