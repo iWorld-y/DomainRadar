@@ -3,6 +3,11 @@ package conf
 type Bootstrap struct {
 	Server *Server
 	Data   *Data
+	Auth   *Auth
+}
+
+type Auth struct {
+	JwtKey string
 }
 
 type Server struct {

@@ -2,9 +2,12 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -25,13 +28,22 @@ type UserRepo interface {
 
 // UserUseCase 用户业务逻辑
 type UserUseCase struct {
-	repo UserRepo
-	log  *log.Helper
+	repo   UserRepo
+	log    *log.Helper
+	jwtKey string
 }
 
 // NewUserUseCase 创建用户业务逻辑实例
-func NewUserUseCase(repo UserRepo, logger log.Logger) *UserUseCase {
-	return &UserUseCase{repo: repo, log: log.NewHelper(logger)}
+func NewUserUseCase(repo UserRepo, auth *conf.Auth, logger log.Logger) *UserUseCase {
+	jwtKey := "default-secret"
+	if auth != nil && auth.JwtKey != "" {
+		jwtKey = auth.JwtKey
+	}
+	return &UserUseCase{
+		repo:   repo,
+		log:    log.NewHelper(logger),
+		jwtKey: jwtKey,
+	}
 }
 
 // Register 用户注册
@@ -59,6 +71,12 @@ func (uc *UserUseCase) Login(ctx context.Context, username, password string) (st
 	if err != nil {
 		return "", errors.Unauthorized("AUTH_FAILED", "invalid password")
 	}
-	// 生成模拟 Token (实际应用中应使用 JWT 等)
-	return "mock-token-" + username, nil
+
+	// 生成真实 JWT Token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"username": u.Username,
+		"exp":      time.Now().Add(time.Hour * 24).Unix(),
+	})
+
+	return token.SignedString([]byte(uc.jwtKey))
 }

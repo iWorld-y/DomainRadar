@@ -67,12 +67,12 @@ func main() {
 	userRepo := data.NewUserRepo(d, logger)
 	reportRepo := data.NewReportRepo(d, logger)
 
-	userUseCase := biz.NewUserUseCase(userRepo, logger)
+	userUseCase := biz.NewUserUseCase(userRepo, bc.Auth, logger)
 	reportUseCase := biz.NewReportUseCase(reportRepo, logger)
 
 	displayService := service.NewDisplayService(userUseCase, reportUseCase, logger)
 
-	httpSrv := server.NewHTTPServer(bc.Server, displayService, logger)
+	httpSrv := server.NewHTTPServer(bc.Server, bc.Auth, displayService, logger)
 
 	app := kratos.New(
 		kratos.ID(id),
