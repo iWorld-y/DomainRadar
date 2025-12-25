@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/iWorld-y/domain_radar/app/display/api"
+	v1 "github.com/iWorld-y/domain_radar/api/proto/display/v1"
 	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
 )
 
 type DisplayService struct {
-	api.UnimplementedDisplayServer
+	v1.UnimplementedDisplayServer
 	ucUser   *biz.UserUseCase
 	ucReport *biz.ReportUseCase
 	log      *log.Helper
@@ -23,23 +23,23 @@ func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, log
 	}
 }
 
-func (s *DisplayService) Register(ctx context.Context, req *api.RegisterReq) (*api.RegisterReply, error) {
+func (s *DisplayService) Register(ctx context.Context, req *v1.RegisterReq) (*v1.RegisterReply, error) {
 	err := s.ucUser.Register(ctx, req.Username, req.Password)
 	if err != nil {
-		return &api.RegisterReply{Success: false, Message: err.Error()}, nil
+		return &v1.RegisterReply{Success: false, Message: err.Error()}, nil
 	}
-	return &api.RegisterReply{Success: true, Message: "success"}, nil
+	return &v1.RegisterReply{Success: true, Message: "success"}, nil
 }
 
-func (s *DisplayService) Login(ctx context.Context, req *api.LoginReq) (*api.LoginReply, error) {
+func (s *DisplayService) Login(ctx context.Context, req *v1.LoginReq) (*v1.LoginReply, error) {
 	token, err := s.ucUser.Login(ctx, req.Username, req.Password)
 	if err != nil {
 		return nil, err
 	}
-	return &api.LoginReply{Token: token, Username: req.Username}, nil
+	return &v1.LoginReply{Token: token, Username: req.Username}, nil
 }
 
-func (s *DisplayService) ListReports(ctx context.Context, req *api.ListReportsReq) (*api.ListReportsReply, error) {
+func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq) (*v1.ListReportsReply, error) {
 	page := int(req.Page)
 	if page < 1 {
 		page = 1
@@ -54,9 +54,9 @@ func (s *DisplayService) ListReports(ctx context.Context, req *api.ListReportsRe
 		return nil, err
 	}
 
-	list := make([]*api.ReportSummary, 0, len(reports))
+	list := make([]*v1.ReportSummary, 0, len(reports))
 	for _, r := range reports {
-		list = append(list, &api.ReportSummary{
+		list = append(list, &v1.ReportSummary{
 			Id:         int32(r.ID),
 			DomainName: r.DomainName,
 			Score:      int32(r.Score),
@@ -64,21 +64,21 @@ func (s *DisplayService) ListReports(ctx context.Context, req *api.ListReportsRe
 		})
 	}
 
-	return &api.ListReportsReply{
+	return &v1.ListReportsReply{
 		Reports: list,
 		Total:   int32(total),
 	}, nil
 }
 
-func (s *DisplayService) GetReport(ctx context.Context, req *api.GetReportReq) (*api.GetReportReply, error) {
+func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*v1.GetReportReply, error) {
 	r, err := s.ucReport.Get(ctx, int(req.Id))
 	if err != nil {
 		return nil, err
 	}
 
-	articles := make([]*api.Article, 0, len(r.Articles))
+	articles := make([]*v1.Article, 0, len(r.Articles))
 	for _, a := range r.Articles {
-		articles = append(articles, &api.Article{
+		articles = append(articles, &v1.Article{
 			Title:   a.Title,
 			Link:    a.Link,
 			Source:  a.Source,
@@ -86,7 +86,7 @@ func (s *DisplayService) GetReport(ctx context.Context, req *api.GetReportReq) (
 		})
 	}
 
-	return &api.GetReportReply{
+	return &v1.GetReportReply{
 		Id:         int32(r.ID),
 		DomainName: r.DomainName,
 		Overview:   r.Overview,
