@@ -1,0 +1,28 @@
+llm:
+  base_url: "https://api.openai.com/v1" # 或其他兼容服务的 Base URL
+  api_key: "your_llm_api_key"
+  model: "gpt-4-turbo" # 建议使用长文本能力较强的模型
+
+tavily_api_key: "tvly-xxxxxxxxxxxx"
+
+user_persona: "资深全栈工程师，关注架构设计与 AI 落地"
+
+domains:
+  - "Artificial Intelligence"
+  - "Cloud Computing"
+  - "Rust Programming"
+
+log:
+  level: "info"
+  file: "app.log"
+
+concurrency:
+  qps: 5   # 每秒请求数限制
+  rpm: 60  # 每分钟请求数限制
+
+db:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "your_password"
+  name: "domain_radar"
