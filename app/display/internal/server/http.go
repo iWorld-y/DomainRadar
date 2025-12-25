@@ -73,6 +73,12 @@ func NewHTTPServer(c *conf.Server, auth *conf.Auth, s *service.DisplayService, l
 		}
 	})
 
+	srv.HandleFunc("/style.css", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		content, _ := assets.ReadFile("assets/style.css")
+		w.Write(content)
+	})
+
 	srv.HandleFunc("/dashboard", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		content, _ := assets.ReadFile("assets/dashboard.html")
 		w.Write(content)

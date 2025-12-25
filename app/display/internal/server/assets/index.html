@@ -2,51 +2,99 @@
 <html>
 <head>
     <title>Domain Radar - Login</title>
-    <style>body { font-family: sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h2>Login / Register</h2>
-    <div id="message" style="color: red;"></div>
-    <input type="text" id="username" placeholder="Username" style="display:block; margin: 10px 0; width: 100%; padding: 8px;">
-    <input type="password" id="password" placeholder="Password" style="display:block; margin: 10px 0; width: 100%; padding: 8px;">
-    <button onclick="login()">Login</button>
-    <button onclick="register()">Register</button>
+    <div class="container-sm">
+        <div class="text-center mb-4">
+            <h1>📡 Domain Radar</h1>
+            <p>Your insight into domain trends.</p>
+        </div>
+        
+        <div class="card">
+            <h2 class="text-center">Welcome Back</h2>
+            <div id="message" class="alert" style="display: none;"></div>
+            
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" class="input" placeholder="Enter your username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" class="input" placeholder="Enter your password">
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+                <button onclick="login()" class="btn btn-primary">Login</button>
+                <button onclick="register()" class="btn btn-outline">Register</button>
+            </div>
+        </div>
+        
+        <p class="text-center" style="font-size: 0.875rem;">
+            &copy; 2024 Domain Radar. All rights reserved.
+        </p>
+    </div>
 
     <script>
+        function showMessage(msg, type) {
+            const el = document.getElementById('message');
+            el.innerText = msg;
+            el.style.display = 'block';
+            el.className = 'alert ' + (type === 'error' ? 'alert-error' : 'alert-success');
+        }
+
         async function login() {
             const u = document.getElementById('username').value;
             const p = document.getElementById('password').value;
-            const res = await fetch('/v1/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({username: u, password: p})
-            });
-            const data = await res.json();
-            if (data.token) {
-                localStorage.setItem('token', data.token);
-                window.location.href = '/dashboard';
-            } else {
-                document.getElementById('message').innerText = "Login failed";
+            
+            if (!u || !p) {
+                showMessage("Please enter both username and password", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch('/v1/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({username: u, password: p})
+                });
+                const data = await res.json();
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                    window.location.href = '/dashboard';
+                } else {
+                    showMessage("Login failed: " + (data.message || "Unknown error"), "error");
+                }
+            } catch (e) {
+                showMessage("Network error", "error");
             }
         }
+
         async function register() {
             const u = document.getElementById('username').value;
             const p = document.getElementById('password').value;
-            const res = await fetch('/v1/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({username: u, password: p})
-            });
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById('message').innerText = "Registered! Please login.";
-                document.getElementById('message').style.color = "green";
-            } else {
-                document.getElementById('message').innerText = data.message || "Register failed";
+
+            if (!u || !p) {
+                showMessage("Please enter both username and password", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch('/v1/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({username: u, password: p})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showMessage("Registered successfully! You can now login.", "success");
+                } else {
+                    showMessage(data.message || "Register failed", "error");
+                }
+            } catch (e) {
+                showMessage("Network error", "error");
             }
         }
     </script>

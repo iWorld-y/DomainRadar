@@ -2,18 +2,69 @@
 <html>
 <head>
     <title>Domain Radar - Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
-        .report-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; cursor: pointer; }
-        .report-item:hover { background-color: #f9f9f9; }
-        .score { font-weight: bold; color: #007bff; }
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .report-card {
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+            border-color: var(--primary);
+        }
+        .score-badge {
+            background-color: #eff6ff;
+            color: var(--primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
-    <h2>Reports Dashboard</h2>
-    <div id="list">Loading...</div>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">📡 Domain Radar</div>
+            <div class="nav-links">
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="flex justify-between items-center mb-4">
+            <h2>Reports Dashboard</h2>
+            <button class="btn btn-primary btn-sm" onclick="load()">Refresh</button>
+        </div>
+        
+        <div id="loading" class="text-center" style="padding: 2rem; color: var(--text-secondary);">
+            Loading reports...
+        </div>
+
+        <div id="list" class="report-grid"></div>
+        <div id="empty-state" class="text-center" style="display: none; padding: 3rem;">
+            <p>No reports found.</p>
+        </div>
+    </div>
 
     <script>
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        }
+
         async function load() {
             const token = localStorage.getItem('token');
             if (!token) {
@@ -21,36 +72,60 @@
                 return;
             }
 
-            const res = await fetch('/v1/reports?page=1&page_size=20', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('list').innerHTML = '';
+            document.getElementById('empty-state').style.display = 'none';
+
+            try {
+                const res = await fetch('/v1/reports?page=1&page_size=20', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (res.status === 401) {
+                    logout();
+                    return;
                 }
-            });
 
-            if (res.status === 401) {
-                localStorage.removeItem('token');
-                window.location.href = '/';
-                return;
-            }
+                const data = await res.json();
+                document.getElementById('loading').style.display = 'none';
 
-            const data = await res.json();
-            const list = document.getElementById('list');
-            list.innerHTML = '';
-            if (!data.reports) {
-                list.innerText = "No reports found.";
-                return;
+                if (!data.reports || data.reports.length === 0) {
+                    document.getElementById('empty-state').style.display = 'block';
+                    return;
+                }
+
+                const list = document.getElementById('list');
+                data.reports.forEach(r => {
+                    const div = document.createElement('div');
+                    div.className = 'card report-card';
+                    // Format date nicely if possible, else use raw
+                    const dateStr = new Date(r.date).toLocaleDateString(undefined, {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                    });
+                    
+                    div.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-center mb-4">
+                                <span style="font-weight: 600; color: var(--text-secondary);">${dateStr}</span>
+                                <span class="score-badge">Avg: ${r.averageScore}</span>
+                            </div>
+                            <h3 style="font-size: 1.25rem;">Report #${r.id}</h3>
+                            <p>Contains ${r.domainCount} domains</p>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: right; font-size: 0.875rem; color: var(--primary);">
+                            View Details →
+                        </div>
+                    `;
+                    div.onclick = () => window.location.href = `/report?id=${r.id}`;
+                    list.appendChild(div);
+                });
+            } catch (e) {
+                document.getElementById('loading').innerText = "Failed to load reports.";
             }
-            data.reports.forEach(r => {
-                const div = document.createElement('div');
-                div.className = 'report-item';
-                div.innerHTML = `
-                    <h3>${r.date} <span class="score">Avg Score: ${r.averageScore}</span></h3>
-                    <p>Included Domains: ${r.domainCount}</p>
-                `;
-                div.onclick = () => window.location.href = `/report?id=${r.id}`;
-                list.appendChild(div);
-            });
         }
+        
         load();
     </script>
 </body>
