@@ -8,9 +8,9 @@ import (
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
-	"github.com/iWorld-y/domain_radar/ent"
-	"github.com/iWorld-y/domain_radar/ent/domainreport"
-	"github.com/iWorld-y/domain_radar/ent/reportrun"
+	"github.com/iWorld-y/domain_radar/app/common/ent"
+	"github.com/iWorld-y/domain_radar/app/common/ent/domainreport"
+	"github.com/iWorld-y/domain_radar/app/common/ent/reportrun"
 )
 
 type reportRepo struct {

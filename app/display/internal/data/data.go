@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
-	"github.com/iWorld-y/domain_radar/ent"
+	"github.com/iWorld-y/domain_radar/app/common/ent"
 	_ "github.com/lib/pq"
 )
 

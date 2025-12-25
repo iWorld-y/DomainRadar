@@ -6,7 +6,7 @@ import (
 
 	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/model"
-	"github.com/iWorld-y/domain_radar/ent"
+	"github.com/iWorld-y/domain_radar/app/common/ent"
 	_ "github.com/lib/pq"
 )
 
