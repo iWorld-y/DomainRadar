@@ -18,11 +18,11 @@ import (
 	"github.com/go-shiori/go-readability"
 	"golang.org/x/time/rate"
 
-	"github.com/iWorld-y/domain_radar/src/internal/config"
-	"github.com/iWorld-y/domain_radar/src/internal/logger"
-	dm "github.com/iWorld-y/domain_radar/src/internal/model"
-	"github.com/iWorld-y/domain_radar/src/internal/storage"
-	"github.com/iWorld-y/domain_radar/src/internal/tavily"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/config"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/logger"
+	dm "github.com/iWorld-y/domain_radar/app/domain_radar/internal/model"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/storage"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/tavily"
 )
 
 // HTMLData 用于模板渲染的数据

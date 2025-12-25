@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/iWorld-y/domain_radar/src/internal/config"
-	"github.com/iWorld-y/domain_radar/src/internal/model"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/config"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/model"
 	_ "github.com/lib/pq"
 )
 

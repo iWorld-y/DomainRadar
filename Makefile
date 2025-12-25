@@ -7,7 +7,7 @@ APP_NAME := news_agent
 OUTPUT_DIR := output
 
 # Go 源文件入口
-SRC := ./src/cmd/domain_radar
+SRC := ./app/domain_radar/cmd/domain_radar
 
 all: build
 
