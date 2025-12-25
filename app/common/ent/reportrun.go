@@ -19,6 +19,8 @@ type ReportRun struct {
 	ID int `json:"id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Title holds the value of the "title" field.
+	Title string `json:"title,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ReportRunQuery when eager-loading is set.
 	Edges        ReportRunEdges `json:"edges"`
@@ -61,6 +63,8 @@ func (*ReportRun) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case reportrun.FieldID:
 			values[i] = new(sql.NullInt64)
+		case reportrun.FieldTitle:
+			values[i] = new(sql.NullString)
 		case reportrun.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
@@ -89,6 +93,12 @@ func (_m *ReportRun) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
+			}
+		case reportrun.FieldTitle:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field title", values[i])
+			} else if value.Valid {
+				_m.Title = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -138,6 +148,9 @@ func (_m *ReportRun) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("title=")
+	builder.WriteString(_m.Title)
 	builder.WriteByte(')')
 	return builder.String()
 }

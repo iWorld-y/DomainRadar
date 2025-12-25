@@ -30,6 +30,7 @@ func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*bi
 
 	var results []struct {
 		ID          int       `sql:"id"`
+		Title       string    `sql:"title"`
 		CreatedAt   time.Time `sql:"created_at"`
 		DomainCount int       `sql:"domain_count"`
 		AvgScore    float64   `sql:"avg_score"`
@@ -46,11 +47,12 @@ func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*bi
 			s.LeftJoin(dr).On(t.C(reportrun.FieldID), dr.C(domainreport.FieldRunID))
 			s.Select(
 				t.C(reportrun.FieldID),
+				t.C(reportrun.FieldTitle),
 				t.C(reportrun.FieldCreatedAt),
 				sql.As(sql.Count(dr.C(domainreport.FieldID)), "domain_count"),
 				sql.As(sql.Avg(dr.C(domainreport.FieldScore)), "avg_score"),
 			)
-			s.GroupBy(t.C(reportrun.FieldID), t.C(reportrun.FieldCreatedAt))
+			s.GroupBy(t.C(reportrun.FieldID), t.C(reportrun.FieldCreatedAt), t.C(reportrun.FieldTitle))
 		}).
 		Scan(ctx, &results)
 	if err != nil {
@@ -61,6 +63,7 @@ func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*bi
 	for _, res := range results {
 		summaries = append(summaries, &biz.ReportSummary{
 			ID:           res.ID,
+			Title:        res.Title,
 			Date:         res.CreatedAt.Format("2006-01-02 15:04:05"),
 			DomainCount:  res.DomainCount,
 			AverageScore: int(res.AvgScore),

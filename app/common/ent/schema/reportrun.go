@@ -21,6 +21,7 @@ func (ReportRun) Fields() []ent.Field {
 			dialect.Postgres: "serial",
 		}),
 		field.Time("created_at").Default(time.Now),
+		field.String("title").Default("Daily Report").Optional(),
 	}
 }
 

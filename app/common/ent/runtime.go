@@ -34,6 +34,10 @@ func init() {
 	reportrunDescCreatedAt := reportrunFields[1].Descriptor()
 	// reportrun.DefaultCreatedAt holds the default value on creation for the created_at field.
 	reportrun.DefaultCreatedAt = reportrunDescCreatedAt.Default.(func() time.Time)
+	// reportrunDescTitle is the schema descriptor for title field.
+	reportrunDescTitle := reportrunFields[2].Descriptor()
+	// reportrun.DefaultTitle holds the default value on creation for the title field.
+	reportrun.DefaultTitle = reportrunDescTitle.Default.(string)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescCreatedAt is the schema descriptor for created_at field.

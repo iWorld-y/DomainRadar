@@ -111,7 +111,7 @@
                                 <span style="font-weight: 600; color: var(--text-secondary);">${dateStr}</span>
                                 <span class="score-badge">Avg: ${r.averageScore}</span>
                             </div>
-                            <h3 style="font-size: 1.25rem;">Report #${r.id}</h3>
+                            <h3 style="font-size: 1.25rem;">${r.title || `Report #${r.id}`}</h3>
                             <p>Contains ${r.domainCount} domains</p>
                         </div>
                         <div style="margin-top: 1rem; text-align: right; font-size: 0.875rem; color: var(--primary);">

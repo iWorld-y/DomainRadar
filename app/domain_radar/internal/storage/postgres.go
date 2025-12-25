@@ -44,6 +44,12 @@ func (s *Storage) CreateRun() (int, error) {
 	return r.ID, nil
 }
 
+func (s *Storage) UpdateRunTitle(runID int, title string) error {
+	return s.client.ReportRun.UpdateOneID(runID).
+		SetTitle(title).
+		Exec(context.Background())
+}
+
 func (s *Storage) SaveDomainReport(runID int, report *model.DomainReport) error {
 	ctx := context.Background()
 	tx, err := s.client.Tx(ctx)

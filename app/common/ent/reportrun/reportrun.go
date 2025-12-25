@@ -16,6 +16,8 @@ const (
 	FieldID = "id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldTitle holds the string denoting the title field in the database.
+	FieldTitle = "title"
 	// EdgeDomainReports holds the string denoting the domain_reports edge name in mutations.
 	EdgeDomainReports = "domain_reports"
 	// EdgeDeepAnalysisResults holds the string denoting the deep_analysis_results edge name in mutations.
@@ -42,6 +44,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
+	FieldTitle,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -57,6 +60,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// DefaultTitle holds the default value on creation for the "title" field.
+	DefaultTitle string
 )
 
 // OrderOption defines the ordering options for the ReportRun queries.
@@ -70,6 +75,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByTitle orders the results by the title field.
+func ByTitle(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTitle, opts...).ToFunc()
 }
 
 // ByDomainReportsCount orders the results by domain_reports count.

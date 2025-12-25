@@ -21,6 +21,7 @@ type DomainReport struct {
 
 // DeepAnalysisResult 全局深度解读
 type DeepAnalysisResult struct {
+	Title         string   `json:"title"`        // 报告标题
 	MacroTrends   string   `json:"macro_trends"`
 	Opportunities string   `json:"opportunities"`
 	Risks         string   `json:"risks"`

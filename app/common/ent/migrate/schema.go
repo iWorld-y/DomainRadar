@@ -123,6 +123,7 @@ var (
 	ReportRunsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "title", Type: field.TypeString, Nullable: true, Default: "Daily Report"},
 	}
 	// ReportRunsTable holds the schema information for the "report_runs" table.
 	ReportRunsTable = &schema.Table{

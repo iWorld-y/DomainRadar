@@ -248,6 +248,13 @@ func main() {
 				} else {
 					logger.Log.Info("深度解读报告已保存到数据库")
 				}
+
+				// 更新 ReportRun 的标题
+				if deepAnalysis.Title != "" {
+					if err := store.UpdateRunTitle(runID, deepAnalysis.Title); err != nil {
+						logger.Log.Errorf("更新报告标题失败: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -354,6 +361,7 @@ Context
 Instructions
 请严格按照 JSON 格式输出：
 {
+    "title": "根据今日所有领域内容生成一个吸引人的简短标题（20字以内）",
     "macro_trends": "Markdown格式的核心趋势洞察...",
     "opportunities": "Markdown格式的机遇挖掘...",
     "risks": "Markdown格式的风险预警...",

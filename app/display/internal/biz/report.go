@@ -29,6 +29,7 @@ type Report struct {
 // ReportSummary 报表摘要信息
 type ReportSummary struct {
 	ID           int
+	Title        string
 	Date         string
 	DomainCount  int
 	AverageScore int

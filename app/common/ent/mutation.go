@@ -3538,6 +3538,7 @@ type ReportRunMutation struct {
 	typ                          string
 	id                           *int
 	created_at                   *time.Time
+	title                        *string
 	clearedFields                map[string]struct{}
 	domain_reports               map[int]struct{}
 	removeddomain_reports        map[int]struct{}
@@ -3690,6 +3691,55 @@ func (m *ReportRunMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// SetTitle sets the "title" field.
+func (m *ReportRunMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *ReportRunMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the ReportRun entity.
+// If the ReportRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ReportRunMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ClearTitle clears the value of the "title" field.
+func (m *ReportRunMutation) ClearTitle() {
+	m.title = nil
+	m.clearedFields[reportrun.FieldTitle] = struct{}{}
+}
+
+// TitleCleared returns if the "title" field was cleared in this mutation.
+func (m *ReportRunMutation) TitleCleared() bool {
+	_, ok := m.clearedFields[reportrun.FieldTitle]
+	return ok
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *ReportRunMutation) ResetTitle() {
+	m.title = nil
+	delete(m.clearedFields, reportrun.FieldTitle)
+}
+
 // AddDomainReportIDs adds the "domain_reports" edge to the DomainReport entity by ids.
 func (m *ReportRunMutation) AddDomainReportIDs(ids ...int) {
 	if m.domain_reports == nil {
@@ -3832,9 +3882,12 @@ func (m *ReportRunMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ReportRunMutation) Fields() []string {
-	fields := make([]string, 0, 1)
+	fields := make([]string, 0, 2)
 	if m.created_at != nil {
 		fields = append(fields, reportrun.FieldCreatedAt)
+	}
+	if m.title != nil {
+		fields = append(fields, reportrun.FieldTitle)
 	}
 	return fields
 }
@@ -3846,6 +3899,8 @@ func (m *ReportRunMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case reportrun.FieldCreatedAt:
 		return m.CreatedAt()
+	case reportrun.FieldTitle:
+		return m.Title()
 	}
 	return nil, false
 }
@@ -3857,6 +3912,8 @@ func (m *ReportRunMutation) OldField(ctx context.Context, name string) (ent.Valu
 	switch name {
 	case reportrun.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case reportrun.FieldTitle:
+		return m.OldTitle(ctx)
 	}
 	return nil, fmt.Errorf("unknown ReportRun field %s", name)
 }
@@ -3872,6 +3929,13 @@ func (m *ReportRunMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
+		return nil
+	case reportrun.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
 		return nil
 	}
 	return fmt.Errorf("unknown ReportRun field %s", name)
@@ -3902,7 +3966,11 @@ func (m *ReportRunMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ReportRunMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(reportrun.FieldTitle) {
+		fields = append(fields, reportrun.FieldTitle)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -3915,6 +3983,11 @@ func (m *ReportRunMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ReportRunMutation) ClearField(name string) error {
+	switch name {
+	case reportrun.FieldTitle:
+		m.ClearTitle()
+		return nil
+	}
 	return fmt.Errorf("unknown ReportRun nullable field %s", name)
 }
 
@@ -3924,6 +3997,9 @@ func (m *ReportRunMutation) ResetField(name string) error {
 	switch name {
 	case reportrun.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case reportrun.FieldTitle:
+		m.ResetTitle()
 		return nil
 	}
 	return fmt.Errorf("unknown ReportRun field %s", name)

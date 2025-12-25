@@ -36,6 +36,20 @@ func (_c *ReportRunCreate) SetNillableCreatedAt(v *time.Time) *ReportRunCreate {
 	return _c
 }
 
+// SetTitle sets the "title" field.
+func (_c *ReportRunCreate) SetTitle(v string) *ReportRunCreate {
+	_c.mutation.SetTitle(v)
+	return _c
+}
+
+// SetNillableTitle sets the "title" field if the given value is not nil.
+func (_c *ReportRunCreate) SetNillableTitle(v *string) *ReportRunCreate {
+	if v != nil {
+		_c.SetTitle(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *ReportRunCreate) SetID(v int) *ReportRunCreate {
 	_c.mutation.SetID(v)
@@ -111,6 +125,10 @@ func (_c *ReportRunCreate) defaults() {
 		v := reportrun.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
+	if _, ok := _c.mutation.Title(); !ok {
+		v := reportrun.DefaultTitle
+		_c.mutation.SetTitle(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -153,6 +171,10 @@ func (_c *ReportRunCreate) createSpec() (*ReportRun, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(reportrun.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.Title(); ok {
+		_spec.SetField(reportrun.FieldTitle, field.TypeString, value)
+		_node.Title = value
 	}
 	if nodes := _c.mutation.DomainReportsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

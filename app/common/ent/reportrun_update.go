@@ -45,6 +45,26 @@ func (_u *ReportRunUpdate) SetNillableCreatedAt(v *time.Time) *ReportRunUpdate {
 	return _u
 }
 
+// SetTitle sets the "title" field.
+func (_u *ReportRunUpdate) SetTitle(v string) *ReportRunUpdate {
+	_u.mutation.SetTitle(v)
+	return _u
+}
+
+// SetNillableTitle sets the "title" field if the given value is not nil.
+func (_u *ReportRunUpdate) SetNillableTitle(v *string) *ReportRunUpdate {
+	if v != nil {
+		_u.SetTitle(*v)
+	}
+	return _u
+}
+
+// ClearTitle clears the value of the "title" field.
+func (_u *ReportRunUpdate) ClearTitle() *ReportRunUpdate {
+	_u.mutation.ClearTitle()
+	return _u
+}
+
 // AddDomainReportIDs adds the "domain_reports" edge to the DomainReport entity by IDs.
 func (_u *ReportRunUpdate) AddDomainReportIDs(ids ...int) *ReportRunUpdate {
 	_u.mutation.AddDomainReportIDs(ids...)
@@ -166,6 +186,12 @@ func (_u *ReportRunUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(reportrun.FieldCreatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Title(); ok {
+		_spec.SetField(reportrun.FieldTitle, field.TypeString, value)
+	}
+	if _u.mutation.TitleCleared() {
+		_spec.ClearField(reportrun.FieldTitle, field.TypeString)
 	}
 	if _u.mutation.DomainReportsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -290,6 +316,26 @@ func (_u *ReportRunUpdateOne) SetNillableCreatedAt(v *time.Time) *ReportRunUpdat
 	if v != nil {
 		_u.SetCreatedAt(*v)
 	}
+	return _u
+}
+
+// SetTitle sets the "title" field.
+func (_u *ReportRunUpdateOne) SetTitle(v string) *ReportRunUpdateOne {
+	_u.mutation.SetTitle(v)
+	return _u
+}
+
+// SetNillableTitle sets the "title" field if the given value is not nil.
+func (_u *ReportRunUpdateOne) SetNillableTitle(v *string) *ReportRunUpdateOne {
+	if v != nil {
+		_u.SetTitle(*v)
+	}
+	return _u
+}
+
+// ClearTitle clears the value of the "title" field.
+func (_u *ReportRunUpdateOne) ClearTitle() *ReportRunUpdateOne {
+	_u.mutation.ClearTitle()
 	return _u
 }
 
@@ -444,6 +490,12 @@ func (_u *ReportRunUpdateOne) sqlSave(ctx context.Context) (_node *ReportRun, er
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(reportrun.FieldCreatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Title(); ok {
+		_spec.SetField(reportrun.FieldTitle, field.TypeString, value)
+	}
+	if _u.mutation.TitleCleared() {
+		_spec.ClearField(reportrun.FieldTitle, field.TypeString)
 	}
 	if _u.mutation.DomainReportsCleared() {
 		edge := &sqlgraph.EdgeSpec{
