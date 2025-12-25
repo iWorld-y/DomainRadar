@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>领域雷达 | 报表详情</title>
+    <title data-i18n="report_page_title">领域雷达 | 报表详情</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="/style.css">
+    <script src="/i18n.js"></script>
     <style>
         /* Specific styles for report page */
         header { text-align: center; margin-bottom: 40px; padding: 20px 0; }
@@ -90,26 +91,40 @@
         .ref-list li { margin-bottom: 6px; }
         .ref-list a { color: var(--primary); text-decoration: none; }
         .ref-list a:hover { text-decoration: underline; }
+
+        .lang-switch {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 0.9rem;
+        }
+        .lang-switch:hover {
+            background: rgba(255,255,255,0.1);
+        }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <div class="nav-brand">📡 Domain Radar</div>
-            <div class="nav-links">
+            <div class="nav-brand" data-i18n="nav_brand">📡 Domain Radar</div>
+            <div class="nav-links flex items-center gap-4">
+                <button id="lang-switcher" class="lang-switch" onclick="toggleLanguage()">English</button>
                 <a href="/dashboard">Dashboard</a>
             </div>
         </div>
     </nav>
 
     <div class="container">
-        <div id="loading" class="text-center" style="padding: 50px; font-size: 1.2rem; color: var(--text-secondary);">
+        <div id="loading" class="text-center" style="padding: 50px; font-size: 1.2rem; color: var(--text-secondary);" data-i18n="loading_report">
             正在加载报表详情...
         </div>
         
         <div id="report-content" style="display: none;">
             <header>
-                <h1>📡 领域雷达日报</h1>
+                <h1 data-i18n="report_header">📡 领域雷达日报</h1>
                 <div class="date-info" id="date-info"></div>
             </header>
 
@@ -129,7 +144,7 @@
             const params = new URLSearchParams(window.location.search);
             const id = params.get('id');
             if (!id) {
-                document.getElementById('loading').innerText = '未指定报表 ID';
+                document.getElementById('loading').innerText = t("no_id");
                 return;
             }
 
@@ -147,13 +162,13 @@
                 }
 
                 if (!res.ok) {
-                    throw new Error('加载报表失败');
+                    throw new Error(t("load_error"));
                 }
 
                 const data = await res.json();
                 renderReport(data);
             } catch (err) {
-                document.getElementById('loading').innerText = '错误: ' + err.message;
+                document.getElementById('loading').innerText = t("load_error") + ': ' + err.message;
             }
         }
 
@@ -161,29 +176,29 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('report-content').style.display = 'block';
             
-            document.getElementById('date-info').innerText = `${data.date} • 覆盖 ${data.domains ? data.domains.length : 0} 个领域`;
+            document.getElementById('date-info').innerText = t("date_cover", {date: data.date, count: data.domains ? data.domains.length : 0});
 
             // 渲染深度解读 (如果有)
             if (data.deepAnalysis) {
                 const da = data.deepAnalysis;
                 const daHtml = `
                     <div class="deep-analysis">
-                        <div class="analysis-header">🧠 全局深度解读</div>
+                        <div class="analysis-header">${t("deep_analysis_title")}</div>
                         <div class="analysis-grid">
                             <div class="analysis-section section-trends">
-                                <h3>🔍 宏观趋势</h3>
+                                <h3>${t("macro_trends")}</h3>
                                 <div>${marked.parse(da.macroTrends || '')}</div>
                             </div>
                             <div class="analysis-section section-opps">
-                                <h3>🚀 机遇</h3>
+                                <h3>${t("opportunities")}</h3>
                                 <div>${marked.parse(da.opportunities || '')}</div>
                             </div>
                             <div class="analysis-section section-risks">
-                                <h3>🛡️ 风险</h3>
+                                <h3>${t("risks")}</h3>
                                 <div>${marked.parse(da.risks || '')}</div>
                             </div>
                             <div class="analysis-section section-actions">
-                                <h3>💡 行动指南</h3>
+                                <h3>${t("action_guides")}</h3>
                                 <ul>
                                     ${(da.actionGuides || []).map(g => `<li>${g}</li>`).join('')}
                                 </ul>
@@ -199,20 +214,20 @@
                 <div class="domain-card">
                     <div class="domain-header">
                         <div class="domain-title">${d.domainName}</div>
-                        <div class="domain-score ${d.score >= 7 ? 'score-high' : ''}">热度: ${d.score}/10</div>
+                        <div class="domain-score ${d.score >= 7 ? 'score-high' : ''}">${t("heat_score", {score: d.score})}</div>
                     </div>
                     
                     <div class="domain-content">
                         <div class="overview-section">
-                            <h4>📝 综述</h4>
+                            <h4>${t("domain_overview")}</h4>
                             <div class="markdown-content">${marked.parse(d.overview || '')}</div>
                             
-                            <h4>📈 趋势</h4>
+                            <h4>${t("domain_trends")}</h4>
                             <div class="markdown-content">${marked.parse(d.trends || '')}</div>
                         </div>
                         
                         <div class="key-events">
-                            <h4>🔥 关键事件</h4>
+                            <h4>${t("key_events")}</h4>
                             <ul>
                                 ${(d.keyEvents || []).map(e => `<li>${e}</li>`).join('')}
                             </ul>
@@ -220,7 +235,7 @@
                     </div>
 
                     <div class="references">
-                        <div class="ref-title">🔗 参考来源</div>
+                        <div class="ref-title">${t("references")}</div>
                         <ul class="ref-list">
                             ${(d.articles || []).map(a => `
                                 <li>
@@ -233,6 +248,13 @@
                 </div>
             `).join('');
             document.getElementById('domain-reports-container').innerHTML = domainsHtml;
+        }
+
+        // Reload when language changes to update dynamic content
+        const originalSetLanguage = window.setLanguage;
+        window.setLanguage = function(lang) {
+            originalSetLanguage(lang);
+            loadReport();
         }
 
         document.addEventListener('DOMContentLoaded', loadReport);

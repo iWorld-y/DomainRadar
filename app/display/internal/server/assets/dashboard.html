@@ -4,6 +4,7 @@
     <title>Domain Radar - Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/style.css">
+    <script src="/i18n.js"></script>
     <style>
         .report-grid {
             display: grid;
@@ -31,31 +32,44 @@
             font-weight: 600;
             font-size: 0.875rem;
         }
+        .lang-switch {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 0.9rem;
+        }
+        .lang-switch:hover {
+            background: rgba(255,255,255,0.1);
+        }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <div class="nav-brand">📡 Domain Radar</div>
-            <div class="nav-links">
-                <a href="#" onclick="logout()">Logout</a>
+            <div class="nav-brand" data-i18n="nav_brand">📡 Domain Radar</div>
+            <div class="nav-links flex items-center gap-4">
+                <button id="lang-switcher" class="lang-switch" onclick="toggleLanguage()">English</button>
+                <a href="#" onclick="logout()" data-i18n="logout">Logout</a>
             </div>
         </div>
     </nav>
 
     <div class="container">
         <div class="flex justify-between items-center mb-4">
-            <h2>Reports Dashboard</h2>
-            <button class="btn btn-primary btn-sm" onclick="load()">Refresh</button>
+            <h2 data-i18n="reports_title">Reports Dashboard</h2>
+            <button class="btn btn-primary btn-sm" onclick="load()" data-i18n="refresh_btn">Refresh</button>
         </div>
         
-        <div id="loading" class="text-center" style="padding: 2rem; color: var(--text-secondary);">
+        <div id="loading" class="text-center" style="padding: 2rem; color: var(--text-secondary);" data-i18n="loading">
             Loading reports...
         </div>
 
         <div id="list" class="report-grid"></div>
         <div id="empty-state" class="text-center" style="display: none; padding: 3rem;">
-            <p>No reports found.</p>
+            <p data-i18n="no_reports">No reports found.</p>
         </div>
     </div>
 
@@ -112,18 +126,25 @@
                                 <span class="score-badge">Avg: ${r.averageScore}</span>
                             </div>
                             <h3 style="font-size: 1.25rem;">${r.title || `Report #${r.id}`}</h3>
-                            <p>Contains ${r.domainCount} domains</p>
+                            <p>${t('report_contains', {count: r.domainCount})}</p>
                         </div>
                         <div style="margin-top: 1rem; text-align: right; font-size: 0.875rem; color: var(--primary);">
-                            View Details →
+                            ${t('view_details')}
                         </div>
                     `;
                     div.onclick = () => window.location.href = `/report?id=${r.id}`;
                     list.appendChild(div);
                 });
             } catch (e) {
-                document.getElementById('loading').innerText = "Failed to load reports.";
+                document.getElementById('loading').innerText = t("failed_load");
             }
+        }
+        
+        // Reload when language changes to update dynamic content
+        const originalSetLanguage = window.setLanguage;
+        window.setLanguage = function(lang) {
+            originalSetLanguage(lang);
+            load();
         }
         
         load();

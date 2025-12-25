@@ -4,35 +4,50 @@
     <title>Domain Radar - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/style.css">
+    <script src="/i18n.js"></script>
+    <style>
+        .lang-switch {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: 1px solid var(--border-color);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+    </style>
 </head>
 <body>
+    <button id="lang-switcher" class="lang-switch" onclick="toggleLanguage()">English</button>
     <div class="container-sm">
         <div class="text-center mb-4">
-            <h1>📡 Domain Radar</h1>
-            <p>Your insight into domain trends.</p>
+            <h1 data-i18n="heading">📡 Domain Radar</h1>
+            <p data-i18n="subheading">Your insight into domain trends.</p>
         </div>
         
         <div class="card">
-            <h2 class="text-center">Welcome Back</h2>
+            <h2 class="text-center" data-i18n="welcome">Welcome Back</h2>
             <div id="message" class="alert" style="display: none;"></div>
             
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" class="input" placeholder="Enter your username">
+                <label for="username" data-i18n="username_label">Username</label>
+                <input type="text" id="username" class="input" placeholder="Enter your username" data-i18n="username_placeholder">
             </div>
             
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" class="input" placeholder="Enter your password">
+                <label for="password" data-i18n="password_label">Password</label>
+                <input type="password" id="password" class="input" placeholder="Enter your password" data-i18n="password_placeholder">
             </div>
             
             <div class="flex gap-2 mt-4">
-                <button onclick="login()" class="btn btn-primary">Login</button>
-                <button onclick="register()" class="btn btn-outline">Register</button>
+                <button onclick="login()" class="btn btn-primary" data-i18n="login_btn">Login</button>
+                <button onclick="register()" class="btn btn-outline" data-i18n="register_btn">Register</button>
             </div>
         </div>
         
-        <p class="text-center" style="font-size: 0.875rem;">
+        <p class="text-center" style="font-size: 0.875rem;" data-i18n="footer">
             &copy; 2024 Domain Radar. All rights reserved.
         </p>
     </div>
@@ -50,7 +65,7 @@
             const p = document.getElementById('password').value;
             
             if (!u || !p) {
-                showMessage("Please enter both username and password", "error");
+                showMessage(t("msg_enter_both"), "error");
                 return;
             }
 
@@ -65,10 +80,10 @@
                     localStorage.setItem('token', data.token);
                     window.location.href = '/dashboard';
                 } else {
-                    showMessage("Login failed: " + (data.message || "Unknown error"), "error");
+                    showMessage(t("msg_login_failed") + ": " + (data.message || "Unknown error"), "error");
                 }
             } catch (e) {
-                showMessage("Network error", "error");
+                showMessage(t("msg_network_error"), "error");
             }
         }
 
@@ -77,7 +92,7 @@
             const p = document.getElementById('password').value;
 
             if (!u || !p) {
-                showMessage("Please enter both username and password", "error");
+                showMessage(t("msg_enter_both"), "error");
                 return;
             }
 
@@ -89,12 +104,12 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showMessage("Registered successfully! You can now login.", "success");
+                    showMessage(t("msg_register_success"), "success");
                 } else {
-                    showMessage(data.message || "Register failed", "error");
+                    showMessage(data.message || t("msg_register_failed"), "error");
                 }
             } catch (e) {
-                showMessage("Network error", "error");
+                showMessage(t("msg_network_error"), "error");
             }
         }
     </script>

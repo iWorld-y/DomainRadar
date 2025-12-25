@@ -79,6 +79,13 @@ func NewHTTPServer(c *conf.Server, auth *conf.Auth, s *service.DisplayService, l
 		w.Write(content)
 	})
 
+	// Serve internationalization script
+	srv.HandleFunc("/i18n.js", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		content, _ := assets.ReadFile("assets/i18n.js")
+		w.Write(content)
+	})
+
 	srv.HandleFunc("/dashboard", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		content, _ := assets.ReadFile("assets/dashboard.html")
 		w.Write(content)
