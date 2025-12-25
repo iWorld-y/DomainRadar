@@ -4,7 +4,7 @@ package api.display.v1;
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/iWorld-y/domain_radar/app/display/api/display/v1;v1";
+option go_package = "github.com/iWorld-y/domain_radar/app/display/api;api";
 
 service Display {
   rpc Register (RegisterReq) returns (RegisterReply) {
