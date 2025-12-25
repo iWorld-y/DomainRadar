@@ -2,9 +2,11 @@ package biz
 
 import (
 	"context"
+
 	"github.com/go-kratos/kratos/v2/log"
 )
 
+// Article 关联文章信息
 type Article struct {
 	Title   string
 	Link    string
@@ -12,6 +14,7 @@ type Article struct {
 	PubDate string
 }
 
+// Report 报表领域对象
 type Report struct {
 	ID         int
 	DomainName string
@@ -23,24 +26,44 @@ type Report struct {
 	CreatedAt  string
 }
 
-type ReportRepo interface {
-	ListReports(ctx context.Context, page, pageSize int) ([]*Report, int, error)
-	GetReport(ctx context.Context, id int) (*Report, error)
+// ReportSummary 报表摘要信息
+type ReportSummary struct {
+	Date         string
+	DomainCount  int
+	AverageScore int
 }
 
+// GroupedReport 按日期分组的报表详情
+type GroupedReport struct {
+	Date    string
+	Domains []*Report
+}
+
+// ReportRepo 报表仓库接口
+type ReportRepo interface {
+	// ListReports 分页获取报表摘要列表
+	ListReports(ctx context.Context, page, pageSize int) ([]*ReportSummary, int, error)
+	// GetReportByDate 根据日期获取报表详情
+	GetReportByDate(ctx context.Context, date string) (*GroupedReport, error)
+}
+
+// ReportUseCase 报表业务逻辑
 type ReportUseCase struct {
 	repo ReportRepo
 	log  *log.Helper
 }
 
+// NewReportUseCase 创建报表业务逻辑实例
 func NewReportUseCase(repo ReportRepo, logger log.Logger) *ReportUseCase {
 	return &ReportUseCase{repo: repo, log: log.NewHelper(logger)}
 }
 
-func (uc *ReportUseCase) List(ctx context.Context, page, pageSize int) ([]*Report, int, error) {
+// List 分页列出报表摘要
+func (uc *ReportUseCase) List(ctx context.Context, page, pageSize int) ([]*ReportSummary, int, error) {
 	return uc.repo.ListReports(ctx, page, pageSize)
 }
 
-func (uc *ReportUseCase) Get(ctx context.Context, id int) (*Report, error) {
-	return uc.repo.GetReport(ctx, id)
+// GetByDate 根据日期获取报表详情
+func (uc *ReportUseCase) GetByDate(ctx context.Context, date string) (*GroupedReport, error) {
+	return uc.repo.GetReportByDate(ctx, date)
 }

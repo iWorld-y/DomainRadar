@@ -49,18 +49,17 @@ func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq
 		pageSize = 10
 	}
 
-	reports, total, err := s.ucReport.List(ctx, page, pageSize)
+	summaries, total, err := s.ucReport.List(ctx, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
-	list := make([]*v1.ReportSummary, 0, len(reports))
-	for _, r := range reports {
+	list := make([]*v1.ReportSummary, 0, len(summaries))
+	for _, s := range summaries {
 		list = append(list, &v1.ReportSummary{
-			Id:         int32(r.ID),
-			DomainName: r.DomainName,
-			Score:      int32(r.Score),
-			CreatedAt:  r.CreatedAt,
+			Date:        s.Date,
+			DomainCount: int32(s.DomainCount),
+			AverageScore: int32(s.AverageScore),
 		})
 	}
 
@@ -71,28 +70,35 @@ func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq
 }
 
 func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*v1.GetReportReply, error) {
-	r, err := s.ucReport.Get(ctx, int(req.Id))
+	r, err := s.ucReport.GetByDate(ctx, req.Date)
 	if err != nil {
 		return nil, err
 	}
 
-	articles := make([]*v1.Article, 0, len(r.Articles))
-	for _, a := range r.Articles {
-		articles = append(articles, &v1.Article{
-			Title:   a.Title,
-			Link:    a.Link,
-			Source:  a.Source,
-			PubDate: a.PubDate,
+	domains := make([]*v1.DomainReport, 0, len(r.Domains))
+	for _, d := range r.Domains {
+		articles := make([]*v1.Article, 0, len(d.Articles))
+		for _, a := range d.Articles {
+			articles = append(articles, &v1.Article{
+				Title:   a.Title,
+				Link:    a.Link,
+				Source:  a.Source,
+				PubDate: a.PubDate,
+			})
+		}
+		domains = append(domains, &v1.DomainReport{
+			Id:         int32(d.ID),
+			DomainName: d.DomainName,
+			Overview:   d.Overview,
+			Trends:     d.Trends,
+			Score:      int32(d.Score),
+			KeyEvents:  d.KeyEvents,
+			Articles:   articles,
 		})
 	}
 
 	return &v1.GetReportReply{
-		Id:         int32(r.ID),
-		DomainName: r.DomainName,
-		Overview:   r.Overview,
-		Trends:     r.Trends,
-		Score:      int32(r.Score),
-		KeyEvents:  r.KeyEvents,
-		Articles:   articles,
+		Date:    r.Date,
+		Domains: domains,
 	}, nil
 }

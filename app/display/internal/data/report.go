@@ -20,67 +20,87 @@ func NewReportRepo(data *Data, logger log.Logger) biz.ReportRepo {
 	}
 }
 
-func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*biz.Report, int, error) {
+func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*biz.ReportSummary, int, error) {
 	offset := (page - 1) * pageSize
-	rows, err := r.data.db.QueryContext(ctx, "SELECT id, domain_name, score, created_at FROM domain_reports ORDER BY created_at DESC LIMIT $1 OFFSET $2", pageSize, offset)
+	// Group by date of created_at
+	rows, err := r.data.db.QueryContext(ctx, `
+		SELECT DATE(created_at) as report_date, COUNT(*) as domain_count, AVG(score) as avg_score 
+		FROM domain_reports 
+		GROUP BY report_date 
+		ORDER BY report_date DESC 
+		LIMIT $1 OFFSET $2`, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var reports []*biz.Report
+	var summaries []*biz.ReportSummary
 	for rows.Next() {
-		var rp biz.Report
-		var createdAt sql.NullString
-		if err := rows.Scan(&rp.ID, &rp.DomainName, &rp.Score, &createdAt); err != nil {
+		var s biz.ReportSummary
+		var date sql.NullString
+		var avgScore float64
+		if err := rows.Scan(&date, &s.DomainCount, &avgScore); err != nil {
 			return nil, 0, err
 		}
-		rp.CreatedAt = createdAt.String
-		reports = append(reports, &rp)
+		s.Date = date.String
+		s.AverageScore = int(avgScore)
+		summaries = append(summaries, &s)
 	}
 
 	var total int
-	if err := r.data.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM domain_reports").Scan(&total); err != nil {
+	if err := r.data.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT DATE(created_at)) FROM domain_reports").Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	return reports, total, nil
+	return summaries, total, nil
 }
 
-func (r *reportRepo) GetReport(ctx context.Context, id int) (*biz.Report, error) {
-	var rp biz.Report
-	var createdAt sql.NullString
-	err := r.data.db.QueryRowContext(ctx, "SELECT id, domain_name, overview, trends, score, created_at FROM domain_reports WHERE id = $1", id).
-		Scan(&rp.ID, &rp.DomainName, &rp.Overview, &rp.Trends, &rp.Score, &createdAt)
+func (r *reportRepo) GetReportByDate(ctx context.Context, date string) (*biz.GroupedReport, error) {
+	rows, err := r.data.db.QueryContext(ctx, `
+		SELECT id, domain_name, overview, trends, score, created_at 
+		FROM domain_reports 
+		WHERE DATE(created_at) = $1`, date)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errors.NotFound("REPORT_NOT_FOUND", "report not found")
-		}
 		return nil, err
 	}
-	rp.CreatedAt = createdAt.String
+	defer rows.Close()
 
-	// Get Articles
-	aRows, err := r.data.db.QueryContext(ctx, "SELECT title, link, source, pub_date FROM articles WHERE domain_report_id = $1", id)
-	if err == nil {
-		defer aRows.Close()
-		for aRows.Next() {
-			var a biz.Article
-			aRows.Scan(&a.Title, &a.Link, &a.Source, &a.PubDate)
-			rp.Articles = append(rp.Articles, a)
+	grouped := &biz.GroupedReport{Date: date}
+	for rows.Next() {
+		var rp biz.Report
+		var createdAt sql.NullString
+		if err := rows.Scan(&rp.ID, &rp.DomainName, &rp.Overview, &rp.Trends, &rp.Score, &createdAt); err != nil {
+			return nil, err
 		}
+		rp.CreatedAt = createdAt.String
+
+		// Get Articles
+		aRows, err := r.data.db.QueryContext(ctx, "SELECT title, link, source, pub_date FROM articles WHERE domain_report_id = $1", rp.ID)
+		if err == nil {
+			defer aRows.Close()
+			for aRows.Next() {
+				var a biz.Article
+				aRows.Scan(&a.Title, &a.Link, &a.Source, &a.PubDate)
+				rp.Articles = append(rp.Articles, a)
+			}
+		}
+
+		// Get Key Events
+		eRows, err := r.data.db.QueryContext(ctx, "SELECT event_content FROM key_events WHERE domain_report_id = $1", rp.ID)
+		if err == nil {
+			defer eRows.Close()
+			for eRows.Next() {
+				var e string
+				eRows.Scan(&e)
+				rp.KeyEvents = append(rp.KeyEvents, e)
+			}
+		}
+		grouped.Domains = append(grouped.Domains, &rp)
 	}
 
-	// Get Key Events
-	eRows, err := r.data.db.QueryContext(ctx, "SELECT event_content FROM key_events WHERE domain_report_id = $1", id)
-	if err == nil {
-		defer eRows.Close()
-		for eRows.Next() {
-			var e string
-			eRows.Scan(&e)
-			rp.KeyEvents = append(rp.KeyEvents, e)
-		}
+	if len(grouped.Domains) == 0 {
+		return nil, errors.NotFound("REPORT_NOT_FOUND", "report not found for date: "+date)
 	}
 
-	return &rp, nil
+	return grouped, nil
 }

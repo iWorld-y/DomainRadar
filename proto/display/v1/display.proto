@@ -26,7 +26,7 @@ service Display {
   }
   rpc GetReport (GetReportReq) returns (GetReportReply) {
     option (google.api.http) = {
-      get: "/v1/reports/{id}"
+      get: "/v1/reports/{date}"
     };
   }
 }
@@ -57,10 +57,9 @@ message ListReportsReq {
 }
 
 message ReportSummary {
-  int32 id = 1;
-  string domain_name = 2;
-  int32 score = 3;
-  string created_at = 4;
+  string date = 1;
+  int32 domain_count = 2;
+  int32 average_score = 3;
 }
 
 message ListReportsReply {
@@ -69,7 +68,7 @@ message ListReportsReply {
 }
 
 message GetReportReq {
-  int32 id = 1;
+  string date = 1;
 }
 
 message Article {
@@ -79,7 +78,7 @@ message Article {
   string pub_date = 4;
 }
 
-message GetReportReply {
+message DomainReport {
   int32 id = 1;
   string domain_name = 2;
   string overview = 3;
@@ -87,4 +86,9 @@ message GetReportReply {
   int32 score = 5;
   repeated string key_events = 6;
   repeated Article articles = 7;
+}
+
+message GetReportReply {
+  string date = 1;
+  repeated DomainReport domains = 2;
 }

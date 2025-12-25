@@ -36,7 +36,7 @@ func RegisterDisplayHTTPServer(s *http.Server, srv DisplayHTTPServer) {
 	r.POST("/v1/register", _Display_Register0_HTTP_Handler(srv))
 	r.POST("/v1/login", _Display_Login0_HTTP_Handler(srv))
 	r.GET("/v1/reports", _Display_ListReports0_HTTP_Handler(srv))
-	r.GET("/v1/reports/{id}", _Display_GetReport0_HTTP_Handler(srv))
+	r.GET("/v1/reports/{date}", _Display_GetReport0_HTTP_Handler(srv))
 }
 
 func _Display_Register0_HTTP_Handler(srv DisplayHTTPServer) func(ctx http.Context) error {
@@ -141,7 +141,7 @@ func NewDisplayHTTPClient(client *http.Client) DisplayHTTPClient {
 
 func (c *DisplayHTTPClientImpl) GetReport(ctx context.Context, in *GetReportReq, opts ...http.CallOption) (*GetReportReply, error) {
 	var out GetReportReply
-	pattern := "/v1/reports/{id}"
+	pattern := "/v1/reports/{date}"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationDisplayGetReport))
 	opts = append(opts, http.PathTemplate(pattern))
