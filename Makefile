@@ -29,10 +29,10 @@ run: build
 api:
 	protoc --proto_path=. \
        --proto_path=third_party \
-       --go_out=paths=source_relative:. \
-       --go-http_out=paths=source_relative:. \
-       --go-grpc_out=paths=source_relative:. \
-       app/display/api/display/v1/display.proto
+       --go_out=. \
+       --go-http_out=. \
+       --go-grpc_out=. \
+       app/display/proto/display/v1/display.proto
 
 display:
 	@echo "Building Display Service..."

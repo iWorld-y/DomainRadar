@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.33.0
-// source: app/display/api/display/v1/display.proto
+// source: app/display/proto/display/v1/display.proto
 
-package v1
+package api
 
 import (
 	context "context"
@@ -231,5 +231,5 @@ var Display_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "app/display/api/display/v1/display.proto",
+	Metadata: "app/display/proto/display/v1/display.proto",
 }

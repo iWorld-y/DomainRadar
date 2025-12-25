@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-http v2.9.2
 // - protoc             v6.33.0
-// source: app/display/api/display/v1/display.proto
+// source: app/display/proto/display/v1/display.proto
 
-package v1
+package api
 
 import (
 	context "context"
