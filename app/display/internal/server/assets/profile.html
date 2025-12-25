@@ -142,6 +142,8 @@
                 const data = await res.json();
                 if (data.success) {
                     showMessage(t("msg_profile_saved"), "success");
+                    // Reload to confirm data is persisted
+                    setTimeout(loadProfile, 1000);
                 } else {
                     showMessage(t("msg_profile_save_fail"), "error");
                 }

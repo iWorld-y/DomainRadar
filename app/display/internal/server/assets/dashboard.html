@@ -162,11 +162,22 @@
             try {
                 const res = await fetch('/v1/report/trigger', {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: '{}'
                 });
                 
                 if (res.status === 400) {
-                     alert("Please configure interested domains in profile first.");
+                     // Consume the body to avoid connection issues and get error message
+                     try {
+                        const errData = await res.json();
+                        alert(errData.message || "Please configure interested domains in profile first.");
+                     } catch (e) {
+                        await res.text(); // Consume if json fails
+                        alert("Please configure interested domains in profile first.");
+                     }
                      window.location.href = "/profile";
                      return;
                 }
@@ -185,6 +196,7 @@
         }
 
         async function trackTask(taskId) {
+            const token = localStorage.getItem('token');
             const statusDiv = document.getElementById('task-status');
             const msgSpan = document.getElementById('task-msg');
             const progSpan = document.getElementById('task-progress');
@@ -194,12 +206,21 @@
             
             const interval = setInterval(async () => {
                 try {
-                    const res = await fetch(`/v1/task/${taskId}`);
+                    const res = await fetch(`/v1/task/${taskId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    if (res.status === 401) {
+                         clearInterval(interval);
+                         logout();
+                         return;
+                    }
+
                     const data = await res.json();
                     
                     msgSpan.innerText = data.message || t("generating");
-                    progSpan.innerText = data.progress + "%";
-                    progBar.style.width = data.progress + "%";
+                    progSpan.innerText = (data.progress || 0) + "%";
+                    progBar.style.width = (data.progress || 0) + "%";
                     
                     if (data.status === 'completed') {
                         clearInterval(interval);
@@ -217,8 +238,10 @@
                         document.getElementById('gen-btn').disabled = false;
                     }
                 } catch (e) {
-                    clearInterval(interval);
-                    document.getElementById('gen-btn').disabled = false;
+                    // Don't clear interval immediately on network glitch, but maybe after some retries?
+                    // For now, let's just log and continue, or stop if too many errors.
+                    // But to keep it simple and safe:
+                    console.error("Task tracking error:", e);
                 }
             }, 1000);
         }

@@ -40,16 +40,23 @@ func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*biz
 		}
 		return nil, err
 	}
+	domains := u.Domains
+	if domains == nil {
+		domains = []string{}
+	}
 	return &biz.User{
 		ID:           u.ID,
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
 		Persona:      u.Persona,
-		Domains:      u.Domains,
+		Domains:      domains,
 	}, nil
 }
 
 func (r *userRepo) UpdateUserProfile(ctx context.Context, id int, persona string, domains []string) error {
+	if domains == nil {
+		domains = []string{}
+	}
 	return r.data.db.User.UpdateOneID(id).
 		SetPersona(persona).
 		SetDomains(domains).

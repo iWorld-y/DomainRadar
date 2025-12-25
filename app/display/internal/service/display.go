@@ -14,6 +14,7 @@ import (
 	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/engine"
+	drLogger "github.com/iWorld-y/domain_radar/app/domain_radar/pkg/logger"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/storage"
 )
 
@@ -49,6 +50,13 @@ func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, log
 	var eng *engine.Engine
 
 	if drCfg != nil {
+		// Initialize domain_radar logger to avoid nil pointer dereference in engine
+		if err := drLogger.InitLogger(drCfg.Log.Level, drCfg.Log.File); err != nil {
+			log.NewHelper(logger).Errorf("Failed to init domain_radar logger: %v", err)
+			// Fallback
+			drLogger.InitLogger("info", "")
+		}
+
 		store, err = storage.NewStorage(drCfg.DB)
 		if err != nil {
 			log.NewHelper(logger).Errorf("Failed to init storage for engine: %v", err)
@@ -215,6 +223,8 @@ func (s *DisplayService) UpdateProfile(ctx context.Context, req *v1.UpdateProfil
 		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid username in token")
 	}
 
+	s.log.Infof("UpdateProfile: username=%s, domains=%v", username, req.Domains)
+
 	err := s.ucUser.UpdateProfile(ctx, username, req.Persona, req.Domains)
 	if err != nil {
 		return nil, err
@@ -245,6 +255,8 @@ func (s *DisplayService) TriggerReport(ctx context.Context, req *v1.TriggerRepor
 		return nil, err
 	}
 
+	s.log.Infof("TriggerReport: username=%s, domains=%v, len=%d", username, u.Domains, len(u.Domains))
+
 	if len(u.Domains) == 0 {
 		return nil, errors.BadRequest("NO_DOMAINS", "please configure interested domains in profile first")
 	}
@@ -255,6 +267,7 @@ func (s *DisplayService) TriggerReport(ctx context.Context, req *v1.TriggerRepor
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
+				s.log.Errorf("Recovered from panic: %v", r)
 				s.tasks.Store(taskID, &TaskStatus{Status: "failed", Progress: 100, Message: "Internal Panic"})
 			}
 		}()
