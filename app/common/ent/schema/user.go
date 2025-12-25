@@ -21,6 +21,7 @@ func (User) Fields() []ent.Field {
 		}),
 		field.String("username").Unique(),
 		field.String("password_hash"),
+		field.String("persona").Optional().Comment("User persona for deep analysis"),
 		field.Time("created_at").Default(time.Now),
 	}
 }

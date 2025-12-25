@@ -56,7 +56,7 @@ type ReportRepo interface {
 	// ListReports 分页获取报表摘要列表
 	ListReports(ctx context.Context, page, pageSize int) ([]*ReportSummary, int, error)
 	// GetReportByID 根据ID获取报表详情
-	GetReportByID(ctx context.Context, id int) (*GroupedReport, error)
+	GetReportByID(ctx context.Context, id int, userID int) (*GroupedReport, error)
 }
 
 // ReportUseCase 报表业务逻辑
@@ -76,6 +76,6 @@ func (uc *ReportUseCase) List(ctx context.Context, page, pageSize int) ([]*Repor
 }
 
 // GetByID 根据ID获取报表详情
-func (uc *ReportUseCase) GetByID(ctx context.Context, id int) (*GroupedReport, error) {
-	return uc.repo.GetReportByID(ctx, id)
+func (uc *ReportUseCase) GetByID(ctx context.Context, id int, userID int) (*GroupedReport, error) {
+	return uc.repo.GetReportByID(ctx, id, userID)
 }

@@ -21,6 +21,7 @@ func (DeepAnalysisResult) Fields() []ent.Field {
 			dialect.Postgres: "serial",
 		}),
 		field.Int("run_id").Optional(),
+		field.Int("user_id").Optional(),
 		field.String("macro_trends").Optional(),
 		field.String("opportunities").Optional(),
 		field.String("risks").Optional(),

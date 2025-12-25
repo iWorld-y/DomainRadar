@@ -57,6 +57,26 @@ func (_u *UserUpdate) SetNillablePasswordHash(v *string) *UserUpdate {
 	return _u
 }
 
+// SetPersona sets the "persona" field.
+func (_u *UserUpdate) SetPersona(v string) *UserUpdate {
+	_u.mutation.SetPersona(v)
+	return _u
+}
+
+// SetNillablePersona sets the "persona" field if the given value is not nil.
+func (_u *UserUpdate) SetNillablePersona(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetPersona(*v)
+	}
+	return _u
+}
+
+// ClearPersona clears the value of the "persona" field.
+func (_u *UserUpdate) ClearPersona() *UserUpdate {
+	_u.mutation.ClearPersona()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *UserUpdate) SetCreatedAt(v time.Time) *UserUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -124,6 +144,12 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Persona(); ok {
+		_spec.SetField(user.FieldPersona, field.TypeString, value)
+	}
+	if _u.mutation.PersonaCleared() {
+		_spec.ClearField(user.FieldPersona, field.TypeString)
+	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
 	}
@@ -174,6 +200,26 @@ func (_u *UserUpdateOne) SetNillablePasswordHash(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetPasswordHash(*v)
 	}
+	return _u
+}
+
+// SetPersona sets the "persona" field.
+func (_u *UserUpdateOne) SetPersona(v string) *UserUpdateOne {
+	_u.mutation.SetPersona(v)
+	return _u
+}
+
+// SetNillablePersona sets the "persona" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillablePersona(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetPersona(*v)
+	}
+	return _u
+}
+
+// ClearPersona clears the value of the "persona" field.
+func (_u *UserUpdateOne) ClearPersona() *UserUpdateOne {
+	_u.mutation.ClearPersona()
 	return _u
 }
 
@@ -273,6 +319,12 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Persona(); ok {
+		_spec.SetField(user.FieldPersona, field.TypeString, value)
+	}
+	if _u.mutation.PersonaCleared() {
+		_spec.ClearField(user.FieldPersona, field.TypeString)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

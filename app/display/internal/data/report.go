@@ -9,6 +9,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
 	"github.com/iWorld-y/domain_radar/app/common/ent"
+	"github.com/iWorld-y/domain_radar/app/common/ent/deepanalysisresult"
 	"github.com/iWorld-y/domain_radar/app/common/ent/domainreport"
 	"github.com/iWorld-y/domain_radar/app/common/ent/reportrun"
 )
@@ -78,10 +79,11 @@ func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*bi
 	return summaries, total, nil
 }
 
-func (r *reportRepo) GetReportByID(ctx context.Context, id int) (*biz.GroupedReport, error) {
+func (r *reportRepo) GetReportByID(ctx context.Context, id int, userID int) (*biz.GroupedReport, error) {
 	run, err := r.data.db.ReportRun.Query().
 		Where(reportrun.ID(id)).
 		WithDeepAnalysisResults(func(q *ent.DeepAnalysisResultQuery) {
+			q.Where(deepanalysisresult.UserID(userID))
 			q.WithActionGuides()
 		}).
 		WithDomainReports(func(q *ent.DomainReportQuery) {

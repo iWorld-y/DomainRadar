@@ -3,7 +3,10 @@ package service
 import (
 	"context"
 
+	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/auth/jwt"
+	jwtv5 "github.com/golang-jwt/jwt/v5"
 	v1 "github.com/iWorld-y/domain_radar/api/proto/display/v1"
 	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
 )
@@ -72,7 +75,25 @@ func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq
 }
 
 func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*v1.GetReportReply, error) {
-	r, err := s.ucReport.GetByID(ctx, int(req.Id))
+	claims, ok := jwt.FromContext(ctx)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "missing jwt token")
+	}
+	mapClaims, ok := claims.(jwtv5.MapClaims)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid jwt token")
+	}
+	username, ok := mapClaims["username"].(string)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid username in token")
+	}
+
+	u, err := s.ucUser.GetProfile(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := s.ucReport.GetByID(ctx, int(req.Id), u.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -115,4 +136,46 @@ func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*
 	}
 
 	return reply, nil
+}
+
+func (s *DisplayService) GetProfile(ctx context.Context, req *v1.GetProfileReq) (*v1.GetProfileReply, error) {
+	claims, ok := jwt.FromContext(ctx)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "missing jwt token")
+	}
+	mapClaims, ok := claims.(jwtv5.MapClaims)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid jwt token")
+	}
+	username, ok := mapClaims["username"].(string)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid username in token")
+	}
+
+	u, err := s.ucUser.GetProfile(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+	return &v1.GetProfileReply{Username: u.Username, Persona: u.Persona}, nil
+}
+
+func (s *DisplayService) UpdateProfile(ctx context.Context, req *v1.UpdateProfileReq) (*v1.UpdateProfileReply, error) {
+	claims, ok := jwt.FromContext(ctx)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "missing jwt token")
+	}
+	mapClaims, ok := claims.(jwtv5.MapClaims)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid jwt token")
+	}
+	username, ok := mapClaims["username"].(string)
+	if !ok {
+		return nil, errors.Unauthorized("UNAUTHORIZED", "invalid username in token")
+	}
+
+	err := s.ucUser.UpdateProfile(ctx, username, req.Persona)
+	if err != nil {
+		return nil, err
+	}
+	return &v1.UpdateProfileReply{Success: true}, nil
 }

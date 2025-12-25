@@ -21,6 +21,7 @@ import (
 	"github.com/go-shiori/go-readability"
 	"golang.org/x/time/rate"
 
+	"github.com/iWorld-y/domain_radar/app/common/ent"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/logger"
 	dm "github.com/iWorld-y/domain_radar/app/domain_radar/internal/model"
@@ -222,7 +223,27 @@ func main() {
 
 	// 8. 深度解读
 	var deepAnalysis *dm.DeepAnalysisResult
-	if cfg.UserPersona != "" && len(domainReports) > 0 {
+	
+	// Get users with persona from DB
+	var users []*ent.User
+	if store != nil {
+		var err error
+		users, err = store.GetUsersWithPersona()
+		if err != nil {
+			logger.Log.Errorf("无法获取用户画像: %v", err)
+		}
+	}
+
+	// 如果配置中还有 UserPersona，也可以作为一个备用（或者根据需求完全移除）
+	// User requirement: "Instead of reading from config ... If no info, refuse to generate article."
+	// So we strictly rely on DB users.
+	
+	if len(users) == 0 {
+		logger.Log.Warn("未找到配置了画像的用户，跳过深度解读生成 (或拒绝生成)")
+		// If strict refusal is needed:
+		// return
+		// But we have already generated domain reports. I will just skip Deep Analysis.
+	} else if len(domainReports) > 0 {
 		logger.Log.Info("正在生成全局深度解读报告...")
 
 		// 构造输入：使用各领域的 Summary 和 Trends
@@ -233,28 +254,40 @@ func main() {
 			fmt.Fprintf(&sb, "### 趋势\n%s\n", report.Trends)
 			fmt.Fprintf(&sb, "### 关键事件\n- %s\n\n", strings.Join(report.KeyEvents, "\n- "))
 		}
+		
+		reportContent := sb.String()
 
-		analysis, err := deepInterpretReport(ctx, chatModel, sb.String(), cfg.UserPersona, limiter)
-		if err != nil {
-			logger.Log.Errorf("全局深度解读失败: %v", err)
-		} else {
-			deepAnalysis = analysis
-			logger.Log.Info("全局深度解读报告生成完成")
-
+		for _, u := range users {
+			if u.Persona == "" {
+				continue
+			}
+			logger.Log.Infof("为用户 [%s] 生成深度解读...", u.Username)
+			
+			analysis, err := deepInterpretReport(ctx, chatModel, reportContent, u.Persona, limiter)
+			if err != nil {
+				logger.Log.Errorf("用户 [%s] 深度解读失败: %v", u.Username, err)
+				continue
+			}
+			
 			// 保存到数据库
 			if store != nil && runID > 0 {
-				if err := store.SaveDeepAnalysis(runID, deepAnalysis); err != nil {
+				if err := store.SaveDeepAnalysis(runID, u.ID, analysis); err != nil {
 					logger.Log.Errorf("保存深度解读失败: %v", err)
 				} else {
 					logger.Log.Info("深度解读报告已保存到数据库")
 				}
-
-				// 更新 ReportRun 的标题
-				if deepAnalysis.Title != "" {
-					if err := store.UpdateRunTitle(runID, deepAnalysis.Title); err != nil {
+				
+				// Optional: Update run title based on the first analysis
+				if deepAnalysis == nil && analysis.Title != "" {
+					if err := store.UpdateRunTitle(runID, analysis.Title); err != nil {
 						logger.Log.Errorf("更新报告标题失败: %v", err)
 					}
 				}
+			}
+			
+			// Keep the last one for HTML generation (or first one)
+			if deepAnalysis == nil {
+				deepAnalysis = analysis
 			}
 		}
 	}

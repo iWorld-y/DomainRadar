@@ -51,6 +51,33 @@ func (_u *DeepAnalysisResultUpdate) ClearRunID() *DeepAnalysisResultUpdate {
 	return _u
 }
 
+// SetUserID sets the "user_id" field.
+func (_u *DeepAnalysisResultUpdate) SetUserID(v int) *DeepAnalysisResultUpdate {
+	_u.mutation.ResetUserID()
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *DeepAnalysisResultUpdate) SetNillableUserID(v *int) *DeepAnalysisResultUpdate {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
+	return _u
+}
+
+// AddUserID adds value to the "user_id" field.
+func (_u *DeepAnalysisResultUpdate) AddUserID(v int) *DeepAnalysisResultUpdate {
+	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (_u *DeepAnalysisResultUpdate) ClearUserID() *DeepAnalysisResultUpdate {
+	_u.mutation.ClearUserID()
+	return _u
+}
+
 // SetMacroTrends sets the "macro_trends" field.
 func (_u *DeepAnalysisResultUpdate) SetMacroTrends(v string) *DeepAnalysisResultUpdate {
 	_u.mutation.SetMacroTrends(v)
@@ -233,6 +260,15 @@ func (_u *DeepAnalysisResultUpdate) sqlSave(ctx context.Context) (_node int, err
 			}
 		}
 	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(deepanalysisresult.FieldUserID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserID(); ok {
+		_spec.AddField(deepanalysisresult.FieldUserID, field.TypeInt, value)
+	}
+	if _u.mutation.UserIDCleared() {
+		_spec.ClearField(deepanalysisresult.FieldUserID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.MacroTrends(); ok {
 		_spec.SetField(deepanalysisresult.FieldMacroTrends, field.TypeString, value)
 	}
@@ -367,6 +403,33 @@ func (_u *DeepAnalysisResultUpdateOne) SetNillableRunID(v *int) *DeepAnalysisRes
 // ClearRunID clears the value of the "run_id" field.
 func (_u *DeepAnalysisResultUpdateOne) ClearRunID() *DeepAnalysisResultUpdateOne {
 	_u.mutation.ClearRunID()
+	return _u
+}
+
+// SetUserID sets the "user_id" field.
+func (_u *DeepAnalysisResultUpdateOne) SetUserID(v int) *DeepAnalysisResultUpdateOne {
+	_u.mutation.ResetUserID()
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *DeepAnalysisResultUpdateOne) SetNillableUserID(v *int) *DeepAnalysisResultUpdateOne {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
+	return _u
+}
+
+// AddUserID adds value to the "user_id" field.
+func (_u *DeepAnalysisResultUpdateOne) AddUserID(v int) *DeepAnalysisResultUpdateOne {
+	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (_u *DeepAnalysisResultUpdateOne) ClearUserID() *DeepAnalysisResultUpdateOne {
+	_u.mutation.ClearUserID()
 	return _u
 }
 
@@ -581,6 +644,15 @@ func (_u *DeepAnalysisResultUpdateOne) sqlSave(ctx context.Context) (_node *Deep
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(deepanalysisresult.FieldUserID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserID(); ok {
+		_spec.AddField(deepanalysisresult.FieldUserID, field.TypeInt, value)
+	}
+	if _u.mutation.UserIDCleared() {
+		_spec.ClearField(deepanalysisresult.FieldUserID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.MacroTrends(); ok {
 		_spec.SetField(deepanalysisresult.FieldMacroTrends, field.TypeString, value)

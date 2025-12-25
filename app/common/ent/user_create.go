@@ -32,6 +32,20 @@ func (_c *UserCreate) SetPasswordHash(v string) *UserCreate {
 	return _c
 }
 
+// SetPersona sets the "persona" field.
+func (_c *UserCreate) SetPersona(v string) *UserCreate {
+	_c.mutation.SetPersona(v)
+	return _c
+}
+
+// SetNillablePersona sets the "persona" field if the given value is not nil.
+func (_c *UserCreate) SetNillablePersona(v *string) *UserCreate {
+	if v != nil {
+		_c.SetPersona(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UserCreate) SetCreatedAt(v time.Time) *UserCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -143,6 +157,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 		_node.PasswordHash = value
+	}
+	if value, ok := _c.mutation.Persona(); ok {
+		_spec.SetField(user.FieldPersona, field.TypeString, value)
+		_node.Persona = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

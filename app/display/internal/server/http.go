@@ -96,5 +96,10 @@ func NewHTTPServer(c *conf.Server, auth *conf.Auth, s *service.DisplayService, l
 		w.Write(content)
 	})
 
+	srv.HandleFunc("/profile", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		content, _ := assets.ReadFile("assets/profile.html")
+		w.Write(content)
+	})
+
 	return srv
 }

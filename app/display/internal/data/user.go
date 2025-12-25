@@ -5,9 +5,9 @@ import (
 
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
 	"github.com/iWorld-y/domain_radar/app/common/ent"
 	"github.com/iWorld-y/domain_radar/app/common/ent/user"
+	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
 )
 
 type userRepo struct {
@@ -44,5 +44,10 @@ func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*biz
 		ID:           int(u.ID),
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
+		Persona:      u.Persona,
 	}, nil
+}
+
+func (r *userRepo) UpdateUserPersona(ctx context.Context, id int, persona string) error {
+	return r.data.db.User.UpdateOneID(id).SetPersona(persona).Exec(ctx)
 }

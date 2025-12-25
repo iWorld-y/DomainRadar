@@ -16,6 +16,7 @@ type User struct {
 	ID           int
 	Username     string
 	PasswordHash string
+	Persona      string
 }
 
 // UserRepo 用户仓库接口
@@ -24,6 +25,8 @@ type UserRepo interface {
 	CreateUser(ctx context.Context, u *User) error
 	// GetUserByUsername 根据用户名获取用户
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
+	// UpdateUserPersona 更新用户画像
+	UpdateUserPersona(ctx context.Context, id int, persona string) error
 }
 
 // UserUseCase 用户业务逻辑
@@ -79,4 +82,18 @@ func (uc *UserUseCase) Login(ctx context.Context, username, password string) (st
 	})
 
 	return token.SignedString([]byte(uc.jwtKey))
+}
+
+// GetProfile 获取用户信息
+func (uc *UserUseCase) GetProfile(ctx context.Context, username string) (*User, error) {
+	return uc.repo.GetUserByUsername(ctx, username)
+}
+
+// UpdateProfile 更新用户画像
+func (uc *UserUseCase) UpdateProfile(ctx context.Context, username, persona string) error {
+	u, err := uc.repo.GetUserByUsername(ctx, username)
+	if err != nil {
+		return err
+	}
+	return uc.repo.UpdateUserPersona(ctx, u.ID, persona)
 }

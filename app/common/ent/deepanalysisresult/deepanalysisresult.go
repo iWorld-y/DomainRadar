@@ -16,6 +16,8 @@ const (
 	FieldID = "id"
 	// FieldRunID holds the string denoting the run_id field in the database.
 	FieldRunID = "run_id"
+	// FieldUserID holds the string denoting the user_id field in the database.
+	FieldUserID = "user_id"
 	// FieldMacroTrends holds the string denoting the macro_trends field in the database.
 	FieldMacroTrends = "macro_trends"
 	// FieldOpportunities holds the string denoting the opportunities field in the database.
@@ -50,6 +52,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldRunID,
+	FieldUserID,
 	FieldMacroTrends,
 	FieldOpportunities,
 	FieldRisks,
@@ -82,6 +85,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByRunID orders the results by the run_id field.
 func ByRunID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRunID, opts...).ToFunc()
+}
+
+// ByUserID orders the results by the user_id field.
+func ByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserID, opts...).ToFunc()
 }
 
 // ByMacroTrends orders the results by the macro_trends field.

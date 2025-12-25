@@ -7,6 +7,7 @@ import (
 	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/internal/model"
 	"github.com/iWorld-y/domain_radar/app/common/ent"
+	"github.com/iWorld-y/domain_radar/app/common/ent/user"
 	_ "github.com/lib/pq"
 )
 
@@ -48,6 +49,12 @@ func (s *Storage) UpdateRunTitle(runID int, title string) error {
 	return s.client.ReportRun.UpdateOneID(runID).
 		SetTitle(title).
 		Exec(context.Background())
+}
+
+func (s *Storage) GetUsersWithPersona() ([]*ent.User, error) {
+	return s.client.User.Query().
+		Where(user.PersonaNEQ("")).
+		All(context.Background())
 }
 
 func (s *Storage) SaveDomainReport(runID int, report *model.DomainReport) error {
@@ -111,7 +118,7 @@ func (s *Storage) SaveDomainReport(runID int, report *model.DomainReport) error 
 	return tx.Commit()
 }
 
-func (s *Storage) SaveDeepAnalysis(runID int, result *model.DeepAnalysisResult) error {
+func (s *Storage) SaveDeepAnalysis(runID int, userID int, result *model.DeepAnalysisResult) error {
 	ctx := context.Background()
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
@@ -121,6 +128,7 @@ func (s *Storage) SaveDeepAnalysis(runID int, result *model.DeepAnalysisResult) 
 	// Create DeepAnalysisResult
 	da, err := tx.DeepAnalysisResult.Create().
 		SetRunID(runID).
+		SetUserID(userID).
 		SetMacroTrends(result.MacroTrends).
 		SetOpportunities(result.Opportunities).
 		SetRisks(result.Risks).

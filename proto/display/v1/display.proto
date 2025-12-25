@@ -29,6 +29,17 @@ service Display {
       get: "/v1/reports/{id}"
     };
   }
+  rpc GetProfile (GetProfileReq) returns (GetProfileReply) {
+    option (google.api.http) = {
+      get: "/v1/profile"
+    };
+  }
+  rpc UpdateProfile (UpdateProfileReq) returns (UpdateProfileReply) {
+    option (google.api.http) = {
+      put: "/v1/profile"
+      body: "*"
+    };
+  }
 }
 
 message RegisterReq {
@@ -102,4 +113,19 @@ message GetReportReply {
   string date = 2;
   repeated DomainReport domains = 3;
   DeepAnalysis deep_analysis = 4;
+}
+
+message GetProfileReq {}
+
+message GetProfileReply {
+  string username = 1;
+  string persona = 2;
+}
+
+message UpdateProfileReq {
+  string persona = 1;
+}
+
+message UpdateProfileReply {
+  bool success = 1;
 }

@@ -64,6 +64,11 @@ func PasswordHash(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
 }
 
+// Persona applies equality check predicate on the "persona" field. It's identical to PersonaEQ.
+func Persona(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldPersona, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
@@ -197,6 +202,81 @@ func PasswordHashEqualFold(v string) predicate.User {
 // PasswordHashContainsFold applies the ContainsFold predicate on the "password_hash" field.
 func PasswordHashContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldPasswordHash, v))
+}
+
+// PersonaEQ applies the EQ predicate on the "persona" field.
+func PersonaEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldPersona, v))
+}
+
+// PersonaNEQ applies the NEQ predicate on the "persona" field.
+func PersonaNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldPersona, v))
+}
+
+// PersonaIn applies the In predicate on the "persona" field.
+func PersonaIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldPersona, vs...))
+}
+
+// PersonaNotIn applies the NotIn predicate on the "persona" field.
+func PersonaNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldPersona, vs...))
+}
+
+// PersonaGT applies the GT predicate on the "persona" field.
+func PersonaGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldPersona, v))
+}
+
+// PersonaGTE applies the GTE predicate on the "persona" field.
+func PersonaGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldPersona, v))
+}
+
+// PersonaLT applies the LT predicate on the "persona" field.
+func PersonaLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldPersona, v))
+}
+
+// PersonaLTE applies the LTE predicate on the "persona" field.
+func PersonaLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldPersona, v))
+}
+
+// PersonaContains applies the Contains predicate on the "persona" field.
+func PersonaContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldPersona, v))
+}
+
+// PersonaHasPrefix applies the HasPrefix predicate on the "persona" field.
+func PersonaHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldPersona, v))
+}
+
+// PersonaHasSuffix applies the HasSuffix predicate on the "persona" field.
+func PersonaHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldPersona, v))
+}
+
+// PersonaIsNil applies the IsNil predicate on the "persona" field.
+func PersonaIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldPersona))
+}
+
+// PersonaNotNil applies the NotNil predicate on the "persona" field.
+func PersonaNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldPersona))
+}
+
+// PersonaEqualFold applies the EqualFold predicate on the "persona" field.
+func PersonaEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldPersona, v))
+}
+
+// PersonaContainsFold applies the ContainsFold predicate on the "persona" field.
+func PersonaContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldPersona, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -55,6 +55,7 @@ var (
 	// DeepAnalysisResultsColumns holds the columns for the "deep_analysis_results" table.
 	DeepAnalysisResultsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
+		{Name: "user_id", Type: field.TypeInt, Nullable: true},
 		{Name: "macro_trends", Type: field.TypeString, Nullable: true},
 		{Name: "opportunities", Type: field.TypeString, Nullable: true},
 		{Name: "risks", Type: field.TypeString, Nullable: true},
@@ -69,7 +70,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "deep_analysis_results_report_runs_deep_analysis_results",
-				Columns:    []*schema.Column{DeepAnalysisResultsColumns[5]},
+				Columns:    []*schema.Column{DeepAnalysisResultsColumns[6]},
 				RefColumns: []*schema.Column{ReportRunsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -136,6 +137,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true, SchemaType: map[string]string{"postgres": "serial"}},
 		{Name: "username", Type: field.TypeString, Unique: true},
 		{Name: "password_hash", Type: field.TypeString},
+		{Name: "persona", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// UsersTable holds the schema information for the "users" table.

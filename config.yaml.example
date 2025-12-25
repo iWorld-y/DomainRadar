@@ -5,7 +5,8 @@ llm:
 
 tavily_api_key: "tvly-xxxxxxxxxxxx"
 
-user_persona: "资深全栈工程师，关注架构设计与 AI 落地"
+# user_persona 已迁移至个人中心配置 (数据库)
+# user_persona: "资深全栈工程师，关注架构设计与 AI 落地"
 
 domains:
   - "Artificial Intelligence"

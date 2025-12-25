@@ -1318,6 +1318,8 @@ type DeepAnalysisResultMutation struct {
 	op                   Op
 	typ                  string
 	id                   *int
+	user_id              *int
+	adduser_id           *int
 	macro_trends         *string
 	opportunities        *string
 	risks                *string
@@ -1484,6 +1486,76 @@ func (m *DeepAnalysisResultMutation) RunIDCleared() bool {
 func (m *DeepAnalysisResultMutation) ResetRunID() {
 	m.report_run = nil
 	delete(m.clearedFields, deepanalysisresult.FieldRunID)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *DeepAnalysisResultMutation) SetUserID(i int) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *DeepAnalysisResultMutation) UserID() (r int, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the DeepAnalysisResult entity.
+// If the DeepAnalysisResult object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeepAnalysisResultMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *DeepAnalysisResultMutation) AddUserID(i int) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *DeepAnalysisResultMutation) AddedUserID() (r int, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *DeepAnalysisResultMutation) ClearUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	m.clearedFields[deepanalysisresult.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *DeepAnalysisResultMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[deepanalysisresult.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *DeepAnalysisResultMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	delete(m.clearedFields, deepanalysisresult.FieldUserID)
 }
 
 // SetMacroTrends sets the "macro_trends" field.
@@ -1797,9 +1869,12 @@ func (m *DeepAnalysisResultMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DeepAnalysisResultMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.report_run != nil {
 		fields = append(fields, deepanalysisresult.FieldRunID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, deepanalysisresult.FieldUserID)
 	}
 	if m.macro_trends != nil {
 		fields = append(fields, deepanalysisresult.FieldMacroTrends)
@@ -1823,6 +1898,8 @@ func (m *DeepAnalysisResultMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case deepanalysisresult.FieldRunID:
 		return m.RunID()
+	case deepanalysisresult.FieldUserID:
+		return m.UserID()
 	case deepanalysisresult.FieldMacroTrends:
 		return m.MacroTrends()
 	case deepanalysisresult.FieldOpportunities:
@@ -1842,6 +1919,8 @@ func (m *DeepAnalysisResultMutation) OldField(ctx context.Context, name string) 
 	switch name {
 	case deepanalysisresult.FieldRunID:
 		return m.OldRunID(ctx)
+	case deepanalysisresult.FieldUserID:
+		return m.OldUserID(ctx)
 	case deepanalysisresult.FieldMacroTrends:
 		return m.OldMacroTrends(ctx)
 	case deepanalysisresult.FieldOpportunities:
@@ -1865,6 +1944,13 @@ func (m *DeepAnalysisResultMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRunID(v)
+		return nil
+	case deepanalysisresult.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
 		return nil
 	case deepanalysisresult.FieldMacroTrends:
 		v, ok := value.(string)
@@ -1902,6 +1988,9 @@ func (m *DeepAnalysisResultMutation) SetField(name string, value ent.Value) erro
 // this mutation.
 func (m *DeepAnalysisResultMutation) AddedFields() []string {
 	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, deepanalysisresult.FieldUserID)
+	}
 	return fields
 }
 
@@ -1910,6 +1999,8 @@ func (m *DeepAnalysisResultMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *DeepAnalysisResultMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case deepanalysisresult.FieldUserID:
+		return m.AddedUserID()
 	}
 	return nil, false
 }
@@ -1919,6 +2010,13 @@ func (m *DeepAnalysisResultMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *DeepAnalysisResultMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case deepanalysisresult.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DeepAnalysisResult numeric field %s", name)
 }
@@ -1929,6 +2027,9 @@ func (m *DeepAnalysisResultMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(deepanalysisresult.FieldRunID) {
 		fields = append(fields, deepanalysisresult.FieldRunID)
+	}
+	if m.FieldCleared(deepanalysisresult.FieldUserID) {
+		fields = append(fields, deepanalysisresult.FieldUserID)
 	}
 	if m.FieldCleared(deepanalysisresult.FieldMacroTrends) {
 		fields = append(fields, deepanalysisresult.FieldMacroTrends)
@@ -1956,6 +2057,9 @@ func (m *DeepAnalysisResultMutation) ClearField(name string) error {
 	case deepanalysisresult.FieldRunID:
 		m.ClearRunID()
 		return nil
+	case deepanalysisresult.FieldUserID:
+		m.ClearUserID()
+		return nil
 	case deepanalysisresult.FieldMacroTrends:
 		m.ClearMacroTrends()
 		return nil
@@ -1975,6 +2079,9 @@ func (m *DeepAnalysisResultMutation) ResetField(name string) error {
 	switch name {
 	case deepanalysisresult.FieldRunID:
 		m.ResetRunID()
+		return nil
+	case deepanalysisresult.FieldUserID:
+		m.ResetUserID()
 		return nil
 	case deepanalysisresult.FieldMacroTrends:
 		m.ResetMacroTrends()
@@ -4123,6 +4230,7 @@ type UserMutation struct {
 	id            *int
 	username      *string
 	password_hash *string
+	persona       *string
 	created_at    *time.Time
 	clearedFields map[string]struct{}
 	done          bool
@@ -4306,6 +4414,55 @@ func (m *UserMutation) ResetPasswordHash() {
 	m.password_hash = nil
 }
 
+// SetPersona sets the "persona" field.
+func (m *UserMutation) SetPersona(s string) {
+	m.persona = &s
+}
+
+// Persona returns the value of the "persona" field in the mutation.
+func (m *UserMutation) Persona() (r string, exists bool) {
+	v := m.persona
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPersona returns the old "persona" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldPersona(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPersona is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPersona requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPersona: %w", err)
+	}
+	return oldValue.Persona, nil
+}
+
+// ClearPersona clears the value of the "persona" field.
+func (m *UserMutation) ClearPersona() {
+	m.persona = nil
+	m.clearedFields[user.FieldPersona] = struct{}{}
+}
+
+// PersonaCleared returns if the "persona" field was cleared in this mutation.
+func (m *UserMutation) PersonaCleared() bool {
+	_, ok := m.clearedFields[user.FieldPersona]
+	return ok
+}
+
+// ResetPersona resets all changes to the "persona" field.
+func (m *UserMutation) ResetPersona() {
+	m.persona = nil
+	delete(m.clearedFields, user.FieldPersona)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UserMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -4376,12 +4533,15 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
 	if m.password_hash != nil {
 		fields = append(fields, user.FieldPasswordHash)
+	}
+	if m.persona != nil {
+		fields = append(fields, user.FieldPersona)
 	}
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
@@ -4398,6 +4558,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Username()
 	case user.FieldPasswordHash:
 		return m.PasswordHash()
+	case user.FieldPersona:
+		return m.Persona()
 	case user.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -4413,6 +4575,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUsername(ctx)
 	case user.FieldPasswordHash:
 		return m.OldPasswordHash(ctx)
+	case user.FieldPersona:
+		return m.OldPersona(ctx)
 	case user.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -4437,6 +4601,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPasswordHash(v)
+		return nil
+	case user.FieldPersona:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPersona(v)
 		return nil
 	case user.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -4474,7 +4645,11 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *UserMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(user.FieldPersona) {
+		fields = append(fields, user.FieldPersona)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -4487,6 +4662,11 @@ func (m *UserMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *UserMutation) ClearField(name string) error {
+	switch name {
+	case user.FieldPersona:
+		m.ClearPersona()
+		return nil
+	}
 	return fmt.Errorf("unknown User nullable field %s", name)
 }
 
@@ -4499,6 +4679,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldPasswordHash:
 		m.ResetPasswordHash()
+		return nil
+	case user.FieldPersona:
+		m.ResetPersona()
 		return nil
 	case user.FieldCreatedAt:
 		m.ResetCreatedAt()

@@ -20,6 +20,8 @@ type DeepAnalysisResult struct {
 	ID int `json:"id,omitempty"`
 	// RunID holds the value of the "run_id" field.
 	RunID int `json:"run_id,omitempty"`
+	// UserID holds the value of the "user_id" field.
+	UserID int `json:"user_id,omitempty"`
 	// MacroTrends holds the value of the "macro_trends" field.
 	MacroTrends string `json:"macro_trends,omitempty"`
 	// Opportunities holds the value of the "opportunities" field.
@@ -70,7 +72,7 @@ func (*DeepAnalysisResult) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case deepanalysisresult.FieldID, deepanalysisresult.FieldRunID:
+		case deepanalysisresult.FieldID, deepanalysisresult.FieldRunID, deepanalysisresult.FieldUserID:
 			values[i] = new(sql.NullInt64)
 		case deepanalysisresult.FieldMacroTrends, deepanalysisresult.FieldOpportunities, deepanalysisresult.FieldRisks:
 			values[i] = new(sql.NullString)
@@ -102,6 +104,12 @@ func (_m *DeepAnalysisResult) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field run_id", values[i])
 			} else if value.Valid {
 				_m.RunID = int(value.Int64)
+			}
+		case deepanalysisresult.FieldUserID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_id", values[i])
+			} else if value.Valid {
+				_m.UserID = int(value.Int64)
 			}
 		case deepanalysisresult.FieldMacroTrends:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -175,6 +183,9 @@ func (_m *DeepAnalysisResult) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("run_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RunID))
+	builder.WriteString(", ")
+	builder.WriteString("user_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
 	builder.WriteString(", ")
 	builder.WriteString("macro_trends=")
 	builder.WriteString(_m.MacroTrends)

@@ -36,6 +36,20 @@ func (_c *DeepAnalysisResultCreate) SetNillableRunID(v *int) *DeepAnalysisResult
 	return _c
 }
 
+// SetUserID sets the "user_id" field.
+func (_c *DeepAnalysisResultCreate) SetUserID(v int) *DeepAnalysisResultCreate {
+	_c.mutation.SetUserID(v)
+	return _c
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_c *DeepAnalysisResultCreate) SetNillableUserID(v *int) *DeepAnalysisResultCreate {
+	if v != nil {
+		_c.SetUserID(*v)
+	}
+	return _c
+}
+
 // SetMacroTrends sets the "macro_trends" field.
 func (_c *DeepAnalysisResultCreate) SetMacroTrends(v string) *DeepAnalysisResultCreate {
 	_c.mutation.SetMacroTrends(v)
@@ -209,6 +223,10 @@ func (_c *DeepAnalysisResultCreate) createSpec() (*DeepAnalysisResult, *sqlgraph
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = id
+	}
+	if value, ok := _c.mutation.UserID(); ok {
+		_spec.SetField(deepanalysisresult.FieldUserID, field.TypeInt, value)
+		_node.UserID = value
 	}
 	if value, ok := _c.mutation.MacroTrends(); ok {
 		_spec.SetField(deepanalysisresult.FieldMacroTrends, field.TypeString, value)

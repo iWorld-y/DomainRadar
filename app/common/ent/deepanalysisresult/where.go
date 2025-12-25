@@ -60,6 +60,11 @@ func RunID(v int) predicate.DeepAnalysisResult {
 	return predicate.DeepAnalysisResult(sql.FieldEQ(FieldRunID, v))
 }
 
+// UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
+func UserID(v int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldEQ(FieldUserID, v))
+}
+
 // MacroTrends applies equality check predicate on the "macro_trends" field. It's identical to MacroTrendsEQ.
 func MacroTrends(v string) predicate.DeepAnalysisResult {
 	return predicate.DeepAnalysisResult(sql.FieldEQ(FieldMacroTrends, v))
@@ -108,6 +113,56 @@ func RunIDIsNil() predicate.DeepAnalysisResult {
 // RunIDNotNil applies the NotNil predicate on the "run_id" field.
 func RunIDNotNil() predicate.DeepAnalysisResult {
 	return predicate.DeepAnalysisResult(sql.FieldNotNull(FieldRunID))
+}
+
+// UserIDEQ applies the EQ predicate on the "user_id" field.
+func UserIDEQ(v int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldEQ(FieldUserID, v))
+}
+
+// UserIDNEQ applies the NEQ predicate on the "user_id" field.
+func UserIDNEQ(v int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldNEQ(FieldUserID, v))
+}
+
+// UserIDIn applies the In predicate on the "user_id" field.
+func UserIDIn(vs ...int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldIn(FieldUserID, vs...))
+}
+
+// UserIDNotIn applies the NotIn predicate on the "user_id" field.
+func UserIDNotIn(vs ...int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldNotIn(FieldUserID, vs...))
+}
+
+// UserIDGT applies the GT predicate on the "user_id" field.
+func UserIDGT(v int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldGT(FieldUserID, v))
+}
+
+// UserIDGTE applies the GTE predicate on the "user_id" field.
+func UserIDGTE(v int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldGTE(FieldUserID, v))
+}
+
+// UserIDLT applies the LT predicate on the "user_id" field.
+func UserIDLT(v int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldLT(FieldUserID, v))
+}
+
+// UserIDLTE applies the LTE predicate on the "user_id" field.
+func UserIDLTE(v int) predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldLTE(FieldUserID, v))
+}
+
+// UserIDIsNil applies the IsNil predicate on the "user_id" field.
+func UserIDIsNil() predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldIsNull(FieldUserID))
+}
+
+// UserIDNotNil applies the NotNil predicate on the "user_id" field.
+func UserIDNotNil() predicate.DeepAnalysisResult {
+	return predicate.DeepAnalysisResult(sql.FieldNotNull(FieldUserID))
 }
 
 // MacroTrendsEQ applies the EQ predicate on the "macro_trends" field.

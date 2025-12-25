@@ -42,7 +42,16 @@ const translations = {
         "references": "🔗 References",
         "heat_score": "Heat: {score}/10",
         "switch_lang": "中文",
-        "date_cover": "{date} • Covering {count} domains"
+        "date_cover": "{date} • Covering {count} domains",
+        "profile_title": "Domain Radar - Profile",
+        "profile_heading": "👤 User Profile",
+        "persona_label": "User Persona",
+        "persona_placeholder": "Describe your role and interests (e.g. Senior Full Stack Engineer, interested in AI...)",
+        "save_btn": "Save",
+        "back_dashboard": "Back to Dashboard",
+        "msg_profile_saved": "Profile saved successfully!",
+        "msg_profile_save_fail": "Failed to save profile",
+        "msg_profile_load_fail": "Failed to load profile"
     },
     zh: {
         "title": "领域雷达 - 登录",
@@ -87,7 +96,16 @@ const translations = {
         "references": "🔗 参考来源",
         "heat_score": "热度: {score}/10",
         "switch_lang": "English",
-        "date_cover": "{date} • 覆盖 {count} 个领域"
+        "date_cover": "{date} • 覆盖 {count} 个领域",
+        "profile_title": "领域雷达 - 个人中心",
+        "profile_heading": "👤 个人中心",
+        "persona_label": "用户画像",
+        "persona_placeholder": "描述你的角色和兴趣（例如：资深全栈工程师，关注架构设计与 AI 落地...）",
+        "save_btn": "保存",
+        "back_dashboard": "返回仪表盘",
+        "msg_profile_saved": "个人资料保存成功！",
+        "msg_profile_save_fail": "保存失败",
+        "msg_profile_load_fail": "加载个人资料失败"
     }
 };
 

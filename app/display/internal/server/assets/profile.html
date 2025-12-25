@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="profile_title">Domain Radar - Profile</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/i18n.js"></script>
+    <style>
+        .lang-switch {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 0.9rem;
+        }
+        .lang-switch:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            margin-top: 0.5rem;
+            font-family: inherit;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand" data-i18n="nav_brand">📡 Domain Radar</div>
+            <div class="nav-links flex items-center gap-4">
+                <button id="lang-switcher" class="lang-switch" onclick="toggleLanguage()">English</button>
+                <a href="/dashboard" data-i18n="back_dashboard">Back to Dashboard</a>
+                <a href="#" onclick="logout()" data-i18n="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-sm">
+        <div class="card mt-8">
+            <h2 class="text-center mb-4" data-i18n="profile_heading">👤 User Profile</h2>
+            
+            <div id="message" class="alert" style="display: none;"></div>
+
+            <div class="form-group">
+                <label for="username" data-i18n="username_label">Username</label>
+                <input type="text" id="username" class="input" disabled style="background: #f1f5f9; cursor: not-allowed;">
+            </div>
+            
+            <div class="form-group">
+                <label for="persona" data-i18n="persona_label">User Persona</label>
+                <textarea id="persona" class="input" placeholder="Describe your role and interests..." data-i18n="persona_placeholder"></textarea>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    * This information will be used to generate personalized deep analysis reports.
+                </p>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button onclick="saveProfile()" class="btn btn-primary" data-i18n="save_btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        }
+
+        function showMessage(msg, type) {
+            const el = document.getElementById('message');
+            el.innerText = msg;
+            el.style.display = 'block';
+            el.className = 'alert ' + (type === 'error' ? 'alert-error' : 'alert-success');
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 3000);
+        }
+
+        async function loadProfile() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                const res = await fetch('/v1/profile', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+
+                if (!res.ok) {
+                    throw new Error("Failed to load");
+                }
+
+                const data = await res.json();
+                document.getElementById('username').value = data.username;
+                document.getElementById('persona').value = data.persona || '';
+            } catch (e) {
+                showMessage(t("msg_profile_load_fail"), "error");
+            }
+        }
+
+        async function saveProfile() {
+            const token = localStorage.getItem('token');
+            const persona = document.getElementById('persona').value;
+
+            try {
+                const res = await fetch('/v1/profile', {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ persona: persona })
+                });
+
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+
+                const data = await res.json();
+                if (data.success) {
+                    showMessage(t("msg_profile_saved"), "success");
+                } else {
+                    showMessage(t("msg_profile_save_fail"), "error");
+                }
+            } catch (e) {
+                showMessage(t("msg_network_error"), "error");
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePage(); // i18n
+            loadProfile();
+        });
+        
+        // Reload when language changes to update dynamic content
+        const originalSetLanguage = window.setLanguage;
+        window.setLanguage = function(lang) {
+            originalSetLanguage(lang);
+        }
+    </script>
+</body>
+</html>
