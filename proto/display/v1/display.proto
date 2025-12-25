@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package api.display.v1;
 
-import "google/api/annotations.proto";
+import "third_party/google/api/annotations.proto";
 
-option go_package = "github.com/iWorld-y/domain_radar/app/display/api;api";
+option go_package = "github.com/iWorld-y/domain_radar/api/display/v1;v1";
 
 service Display {
   rpc Register (RegisterReq) returns (RegisterReply) {

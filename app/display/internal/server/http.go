@@ -8,7 +8,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/transport/http"
-	"github.com/iWorld-y/domain_radar/app/display/api"
+	v1 "github.com/iWorld-y/domain_radar/api/proto/display/v1"
 	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
 	"github.com/iWorld-y/domain_radar/app/display/internal/service"
 )
@@ -32,7 +32,7 @@ func NewHTTPServer(c *conf.Server, s *service.DisplayService, logger log.Logger)
 	}
 
 	srv := http.NewServer(opts...)
-	api.RegisterDisplayHTTPServer(srv, s)
+	v1.RegisterDisplayHTTPServer(srv, s)
 
 	// Serve Static Assets (HTML)
 	// We handle "/" manually to serve index.html

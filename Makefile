@@ -27,12 +27,9 @@ run: build
 	@cd $(OUTPUT_DIR) && ./$(APP_NAME)
 
 api:
-	protoc --proto_path=. \
-       --proto_path=third_party \
-       --go_out=. \
-       --go-http_out=. \
-       --go-grpc_out=. \
-       app/display/proto/display/v1/display.proto
+	@echo "正在生成 API 代码..."
+	@buf generate
+	@echo "API 代码生成完成"
 
 display:
 	@echo "Building Display Service..."
