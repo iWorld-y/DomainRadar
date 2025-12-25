@@ -69,6 +69,7 @@ func main() {
 	// 初始化数据库连接
 	// 如果配置了数据库信息，则尝试连接
 	var store *storage.Storage
+	var runID int
 	if cfg.DB.Host != "" {
 		s, err := storage.NewStorage(cfg.DB)
 		if err != nil {
@@ -77,6 +78,15 @@ func main() {
 			store = s
 			defer store.Close()
 			logger.Log.Info("已成功连接到数据库")
+
+			// 创建本次运行记录
+			rid, err := store.CreateRun()
+			if err != nil {
+				logger.Log.Errorf("无法创建运行记录: %v", err)
+			} else {
+				runID = rid
+				logger.Log.Infof("创建运行记录成功, RunID: %d", runID)
+			}
 		}
 	} else {
 		logger.Log.Info("未配置数据库信息，跳过数据库连接")
@@ -187,8 +197,8 @@ func main() {
 			report.Articles = validArticles // 关联原文引用
 
 			// 保存到数据库
-			if store != nil {
-				if err := store.SaveDomainReport(report); err != nil {
+			if store != nil && runID > 0 {
+				if err := store.SaveDomainReport(runID, report); err != nil {
 					logger.Log.Errorf("保存领域报告失败 [%s]: %v", domain, err)
 				} else {
 					logger.Log.Infof("领域报告已保存到数据库 [%s]", domain)
@@ -232,8 +242,8 @@ func main() {
 			logger.Log.Info("全局深度解读报告生成完成")
 
 			// 保存到数据库
-			if store != nil {
-				if err := store.SaveDeepAnalysis(deepAnalysis); err != nil {
+			if store != nil && runID > 0 {
+				if err := store.SaveDeepAnalysis(runID, deepAnalysis); err != nil {
 					logger.Log.Errorf("保存深度解读失败: %v", err)
 				} else {
 					logger.Log.Info("深度解读报告已保存到数据库")

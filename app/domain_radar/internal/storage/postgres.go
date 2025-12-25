@@ -40,8 +40,13 @@ func (s *Storage) Close() error {
 
 func (s *Storage) initSchema() error {
 	queries := []string{
+		`CREATE TABLE IF NOT EXISTS report_runs (
+			id SERIAL PRIMARY KEY,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
 		`CREATE TABLE IF NOT EXISTS domain_reports (
 			id SERIAL PRIMARY KEY,
+			run_id INTEGER REFERENCES report_runs(id),
 			domain_name TEXT NOT NULL,
 			overview TEXT,
 			trends TEXT,
@@ -64,6 +69,7 @@ func (s *Storage) initSchema() error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS deep_analysis_results (
 			id SERIAL PRIMARY KEY,
+			run_id INTEGER REFERENCES report_runs(id),
 			macro_trends TEXT,
 			opportunities TEXT,
 			risks TEXT,
@@ -82,10 +88,34 @@ func (s *Storage) initSchema() error {
 		}
 	}
 
+	// 额外检查：确保旧表也有 run_id 字段 (针对已存在的表进行迁移)
+	tables := []string{"domain_reports", "deep_analysis_results"}
+	for _, table := range tables {
+		var hasRunID bool
+		err := s.db.QueryRow(fmt.Sprintf(`
+			SELECT EXISTS (
+				SELECT 1 
+				FROM information_schema.columns 
+				WHERE table_name='%s' AND column_name='run_id'
+			)`, table)).Scan(&hasRunID)
+		if err == nil && !hasRunID {
+			_, err = s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN run_id INTEGER REFERENCES report_runs(id)", table))
+			if err != nil {
+				return fmt.Errorf("failed to add run_id to %s: %w", table, err)
+			}
+		}
+	}
+
 	return nil
 }
 
-func (s *Storage) SaveDomainReport(report *model.DomainReport) error {
+func (s *Storage) CreateRun() (int, error) {
+	var id int
+	err := s.db.QueryRow("INSERT INTO report_runs DEFAULT VALUES RETURNING id").Scan(&id)
+	return id, err
+}
+
+func (s *Storage) SaveDomainReport(runID int, report *model.DomainReport) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -95,22 +125,22 @@ func (s *Storage) SaveDomainReport(report *model.DomainReport) error {
 	// Insert report
 	var reportID int
 	err = tx.QueryRow(`
-		INSERT INTO domain_reports (domain_name, overview, trends, score)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO domain_reports (run_id, domain_name, overview, trends, score)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id`,
-		report.DomainName, report.Overview, report.Trends, report.Score).Scan(&reportID)
+		runID, report.DomainName, report.Overview, report.Trends, report.Score).Scan(&reportID)
 	if err != nil {
-		return fmt.Errorf("failed to insert domain report: %w", err)
+		return err
 	}
 
 	// Insert articles
-	for _, article := range report.Articles {
+	for _, art := range report.Articles {
 		_, err = tx.Exec(`
 			INSERT INTO articles (domain_report_id, title, link, source, pub_date, content)
 			VALUES ($1, $2, $3, $4, $5, $6)`,
-			reportID, article.Title, article.Link, article.Source, article.PubDate, article.Content)
+			reportID, art.Title, art.Link, art.Source, art.PubDate, art.Content)
 		if err != nil {
-			return fmt.Errorf("failed to insert article: %w", err)
+			return err
 		}
 	}
 
@@ -121,39 +151,39 @@ func (s *Storage) SaveDomainReport(report *model.DomainReport) error {
 			VALUES ($1, $2)`,
 			reportID, event)
 		if err != nil {
-			return fmt.Errorf("failed to insert key event: %w", err)
+			return err
 		}
 	}
 
 	return tx.Commit()
 }
 
-func (s *Storage) SaveDeepAnalysis(analysis *model.DeepAnalysisResult) error {
+func (s *Storage) SaveDeepAnalysis(runID int, result *model.DeepAnalysisResult) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// Insert analysis
+	// Insert deep analysis
 	var analysisID int
 	err = tx.QueryRow(`
-		INSERT INTO deep_analysis_results (macro_trends, opportunities, risks)
-		VALUES ($1, $2, $3)
+		INSERT INTO deep_analysis_results (run_id, macro_trends, opportunities, risks)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id`,
-		analysis.MacroTrends, analysis.Opportunities, analysis.Risks).Scan(&analysisID)
+		runID, result.MacroTrends, result.Opportunities, result.Risks).Scan(&analysisID)
 	if err != nil {
-		return fmt.Errorf("failed to insert deep analysis: %w", err)
+		return err
 	}
 
 	// Insert action guides
-	for _, guide := range analysis.ActionGuides {
+	for _, guide := range result.ActionGuides {
 		_, err = tx.Exec(`
 			INSERT INTO action_guides (deep_analysis_id, guide_content)
 			VALUES ($1, $2)`,
 			analysisID, guide)
 		if err != nil {
-			return fmt.Errorf("failed to insert action guide: %w", err)
+			return err
 		}
 	}
 

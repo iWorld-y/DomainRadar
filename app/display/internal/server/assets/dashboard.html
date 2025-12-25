@@ -47,7 +47,7 @@
                     <h3>${r.date} <span class="score">Avg Score: ${r.averageScore}</span></h3>
                     <p>Included Domains: ${r.domainCount}</p>
                 `;
-                div.onclick = () => window.location.href = `/report?date=${r.date}`;
+                div.onclick = () => window.location.href = `/report?id=${r.id}`;
                 list.appendChild(div);
             });
         }

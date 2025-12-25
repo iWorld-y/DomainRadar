@@ -57,8 +57,9 @@ func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq
 	list := make([]*v1.ReportSummary, 0, len(summaries))
 	for _, s := range summaries {
 		list = append(list, &v1.ReportSummary{
-			Date:        s.Date,
-			DomainCount: int32(s.DomainCount),
+			Id:           int32(s.ID),
+			Date:         s.Date,
+			DomainCount:  int32(s.DomainCount),
 			AverageScore: int32(s.AverageScore),
 		})
 	}
@@ -70,7 +71,7 @@ func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq
 }
 
 func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*v1.GetReportReply, error) {
-	r, err := s.ucReport.GetByDate(ctx, req.Date)
+	r, err := s.ucReport.GetByID(ctx, int(req.Id))
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +98,18 @@ func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*
 		})
 	}
 
-	return &v1.GetReportReply{
+	reply := &v1.GetReportReply{
+		Id:      int32(r.ID),
 		Date:    r.Date,
 		Domains: domains,
-	}, nil
+	}
+
+	if r.DeepAnalysis != nil {
+		reply.MacroTrends = r.DeepAnalysis.MacroTrends
+		reply.Opportunities = r.DeepAnalysis.Opportunities
+		reply.Risks = r.DeepAnalysis.Risks
+		reply.ActionGuides = r.DeepAnalysis.ActionGuides
+	}
+
+	return reply, nil
 }

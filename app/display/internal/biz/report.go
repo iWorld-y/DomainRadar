@@ -28,23 +28,34 @@ type Report struct {
 
 // ReportSummary 报表摘要信息
 type ReportSummary struct {
+	ID           int
 	Date         string
 	DomainCount  int
 	AverageScore int
 }
 
-// GroupedReport 按日期分组的报表详情
+// DeepAnalysisResult 全局深度解读
+type DeepAnalysisResult struct {
+	MacroTrends   string
+	Opportunities string
+	Risks         string
+	ActionGuides  []string
+}
+
+// GroupedReport 报表详情
 type GroupedReport struct {
-	Date    string
-	Domains []*Report
+	ID           int
+	Date         string
+	Domains      []*Report
+	DeepAnalysis *DeepAnalysisResult
 }
 
 // ReportRepo 报表仓库接口
 type ReportRepo interface {
 	// ListReports 分页获取报表摘要列表
 	ListReports(ctx context.Context, page, pageSize int) ([]*ReportSummary, int, error)
-	// GetReportByDate 根据日期获取报表详情
-	GetReportByDate(ctx context.Context, date string) (*GroupedReport, error)
+	// GetReportByID 根据ID获取报表详情
+	GetReportByID(ctx context.Context, id int) (*GroupedReport, error)
 }
 
 // ReportUseCase 报表业务逻辑
@@ -63,7 +74,7 @@ func (uc *ReportUseCase) List(ctx context.Context, page, pageSize int) ([]*Repor
 	return uc.repo.ListReports(ctx, page, pageSize)
 }
 
-// GetByDate 根据日期获取报表详情
-func (uc *ReportUseCase) GetByDate(ctx context.Context, date string) (*GroupedReport, error) {
-	return uc.repo.GetReportByDate(ctx, date)
+// GetByID 根据ID获取报表详情
+func (uc *ReportUseCase) GetByID(ctx context.Context, id int) (*GroupedReport, error) {
+	return uc.repo.GetReportByID(ctx, id)
 }
