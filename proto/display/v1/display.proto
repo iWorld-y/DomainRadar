@@ -61,6 +61,7 @@ message ReportSummary {
   string date = 2;
   int32 domain_count = 3;
   int32 average_score = 4;
+  string title = 5;
 }
 
 message ListReportsReply {

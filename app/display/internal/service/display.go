@@ -58,6 +58,7 @@ func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq
 	for _, s := range summaries {
 		list = append(list, &v1.ReportSummary{
 			Id:           int32(s.ID),
+			Title:        s.Title,
 			Date:         s.Date,
 			DomainCount:  int32(s.DomainCount),
 			AverageScore: int32(s.AverageScore),
