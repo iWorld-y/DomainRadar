@@ -74,8 +74,8 @@ message GetReportReq {
 
 message DeepAnalysis {
   string macro_trends = 1;
-  repeated string opportunities = 2;
-  repeated string risks = 3;
+  string opportunities = 2;
+  string risks = 3;
   repeated string action_guides = 4;
 }
 
@@ -100,8 +100,5 @@ message GetReportReply {
   int32 id = 1;
   string date = 2;
   repeated DomainReport domains = 3;
-  string macro_trends = 4;
-  string opportunities = 5;
-  string risks = 6;
-  repeated string action_guides = 7;
+  DeepAnalysis deep_analysis = 4;
 }

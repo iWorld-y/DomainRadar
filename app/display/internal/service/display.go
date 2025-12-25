@@ -105,10 +105,12 @@ func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*
 	}
 
 	if r.DeepAnalysis != nil {
-		reply.MacroTrends = r.DeepAnalysis.MacroTrends
-		reply.Opportunities = r.DeepAnalysis.Opportunities
-		reply.Risks = r.DeepAnalysis.Risks
-		reply.ActionGuides = r.DeepAnalysis.ActionGuides
+		reply.DeepAnalysis = &v1.DeepAnalysis{
+			MacroTrends:   r.DeepAnalysis.MacroTrends,
+			Opportunities: r.DeepAnalysis.Opportunities,
+			Risks:         r.DeepAnalysis.Risks,
+			ActionGuides:  r.DeepAnalysis.ActionGuides,
+		}
 	}
 
 	return reply, nil
