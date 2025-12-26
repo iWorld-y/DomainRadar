@@ -1,0 +1,10 @@
+server:
+  http:
+    addr: 0.0.0.0:8001
+    timeout: 1s
+data:
+  database:
+    driver: postgres
+    source: postgres://user:password@localhost:5432/domain_radar?sslmode=disable
+auth:
+  jwt_key: "your-secret-key-change-me"
