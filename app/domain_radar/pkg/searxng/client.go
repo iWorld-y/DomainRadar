@@ -81,6 +81,9 @@ func (c *Client) Search(ctx context.Context, req *search.Request) (*search.Respo
 		return nil, fmt.Errorf("create request failed: %w", err)
 	}
 
+	// 添加 User-Agent 避免被简单的反爬虫策略拦截
+	httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
 	res, err := c.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)

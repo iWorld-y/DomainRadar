@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/iWorld-y/domain_radar/app/common/ent"
 	"github.com/iWorld-y/domain_radar/app/common/ent/user"
@@ -83,13 +85,28 @@ func (s *Storage) SaveDomainReport(runID int, report *model.DomainReport) error 
 	if len(report.Articles) > 0 {
 		builders := make([]*ent.ArticleCreate, len(report.Articles))
 		for i, art := range report.Articles {
+			content := art.Content
+			// 移除无效的 UTF-8 字符
+			if !utf8.ValidString(content) {
+				v := make([]rune, 0, len(content))
+				for _, r := range content {
+					if r == utf8.RuneError {
+						continue
+					}
+					v = append(v, r)
+				}
+				content = string(v)
+			}
+			// 移除 NULL 字符，PostgreSQL 文本字段不支持 NULL 字节
+			content = removeNullBytes(content)
+
 			builders[i] = tx.Article.Create().
 				SetDomainReportID(dr.ID).
 				SetTitle(art.Title).
 				SetLink(art.Link).
 				SetSource(art.Source).
 				SetPubDate(art.PubDate).
-				SetContent(art.Content)
+				SetContent(content)
 		}
 		if _, err := tx.Article.CreateBulk(builders...).Save(ctx); err != nil {
 			if rerr := tx.Rollback(); rerr != nil {
@@ -157,4 +174,8 @@ func (s *Storage) SaveDeepAnalysis(runID int, userID int, result *model.DeepAnal
 	}
 
 	return tx.Commit()
+}
+
+func removeNullBytes(s string) string {
+	return strings.ReplaceAll(s, "\x00", "")
 }

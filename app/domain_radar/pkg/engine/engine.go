@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/gg/gson"
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
@@ -68,9 +69,9 @@ func NewEngine(cfg *config.Config, store *storage.Storage) (*Engine, error) {
 
 // RunOptions 运行选项
 type RunOptions struct {
-	UserID        int
-	Domains       []string
-	Persona       string
+	UserID           int
+	Domains          []string
+	Persona          string
 	ProgressCallback func(status string, progress int)
 }
 
@@ -111,12 +112,12 @@ func (e *Engine) Run(ctx context.Context, opts RunOptions) error {
 		wg.Add(1)
 		go func(domain string) {
 			defer wg.Done()
-			
+
 			// 1. 搜索
 			req := &search.Request{
 				Query:             domain,
 				Topic:             "news",
-				MaxResults:        10,
+				MaxResults:        20,
 				StartDate:         startDate,
 				EndDate:           endDate,
 				IncludeRawContent: false,
@@ -127,6 +128,7 @@ func (e *Engine) Run(ctx context.Context, opts RunOptions) error {
 				logger.Log.Errorf("搜索领域失败 [%s]: %v", domain, err)
 				return
 			}
+			logger.Log.Debugf("搜索领域 [%s] 成功: %s", domain, gson.ToString(resp))
 
 			// 2. 抓取正文
 			var validArticles []dm.Article
