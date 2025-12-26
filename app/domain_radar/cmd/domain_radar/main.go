@@ -25,8 +25,9 @@ import (
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/logger"
 	dm "github.com/iWorld-y/domain_radar/app/domain_radar/pkg/model"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/search"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/search/factory"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/storage"
-	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/tavily"
 )
 
 //go:embed resource/index.html
@@ -52,9 +53,6 @@ func main() {
 	}
 
 	// 验证配置
-	if cfg.TavilyAPIKey == "" {
-		log.Fatal("配置错误: 未设置 tavily_api_key")
-	}
 	if len(cfg.Domains) == 0 {
 		log.Fatal("配置错误: 未设置感兴趣的领域 (domains)")
 	}
@@ -116,8 +114,11 @@ func main() {
 	// 用于统计总文章数
 	var totalArticles int
 
-	// 5. 初始化 Tavily 客户端
-	tavilyClient := tavily.NewClient(cfg.TavilyAPIKey)
+	// 5. 初始化搜索客户端
+	searcher, err := factory.NewSearcher(cfg)
+	if err != nil {
+		log.Fatalf("无法初始化搜索客户端: %v", err)
+	}
 
 	// 计算日期范围 (最近 3 天)
 	now := time.Now()
@@ -135,7 +136,7 @@ func main() {
 			logger.Log.Infof("正在处理领域: %s", domain)
 
 			// 6.1 搜索文章 (请求更多结果以确保有足够的高质量文章)
-			req := tavily.SearchRequest{
+			req := &search.Request{
 				Query:             domain,
 				Topic:             "news",
 				MaxResults:        10, // 增加抓取数量，确保至少有 5 篇可用
@@ -144,7 +145,7 @@ func main() {
 				IncludeRawContent: false,
 			}
 
-			resp, err := tavilyClient.Search(req)
+			resp, err := searcher.Search(ctx, req)
 			if err != nil {
 				logger.Log.Errorf("搜索领域失败 [%s]: %v", domain, err)
 				return
@@ -223,7 +224,7 @@ func main() {
 
 	// 8. 深度解读
 	var deepAnalysis *dm.DeepAnalysisResult
-	
+
 	// Get users with persona from DB
 	var users []*ent.User
 	if store != nil {
@@ -237,7 +238,7 @@ func main() {
 	// 如果配置中还有 UserPersona，也可以作为一个备用（或者根据需求完全移除）
 	// User requirement: "Instead of reading from config ... If no info, refuse to generate article."
 	// So we strictly rely on DB users.
-	
+
 	if len(users) == 0 {
 		logger.Log.Warn("未找到配置了画像的用户，跳过深度解读生成 (或拒绝生成)")
 		// If strict refusal is needed:
@@ -254,7 +255,7 @@ func main() {
 			fmt.Fprintf(&sb, "### 趋势\n%s\n", report.Trends)
 			fmt.Fprintf(&sb, "### 关键事件\n- %s\n\n", strings.Join(report.KeyEvents, "\n- "))
 		}
-		
+
 		reportContent := sb.String()
 
 		for _, u := range users {
@@ -262,13 +263,13 @@ func main() {
 				continue
 			}
 			logger.Log.Infof("为用户 [%s] 生成深度解读...", u.Username)
-			
+
 			analysis, err := deepInterpretReport(ctx, chatModel, reportContent, u.Persona, limiter)
 			if err != nil {
 				logger.Log.Errorf("用户 [%s] 深度解读失败: %v", u.Username, err)
 				continue
 			}
-			
+
 			// 保存到数据库
 			if store != nil && runID > 0 {
 				if err := store.SaveDeepAnalysis(runID, u.ID, analysis); err != nil {
@@ -276,7 +277,7 @@ func main() {
 				} else {
 					logger.Log.Info("深度解读报告已保存到数据库")
 				}
-				
+
 				// Optional: Update run title based on the first analysis
 				if deepAnalysis == nil && analysis.Title != "" {
 					if err := store.UpdateRunTitle(runID, analysis.Title); err != nil {
@@ -284,7 +285,7 @@ func main() {
 					}
 				}
 			}
-			
+
 			// Keep the last one for HTML generation (or first one)
 			if deepAnalysis == nil {
 				deepAnalysis = analysis

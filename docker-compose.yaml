@@ -17,5 +17,22 @@ services:
       timeout: 5s
       retries: 5
 
+  searxng:
+    image: searxng/searxng:latest
+    container_name: domain_radar_searxng
+    depends_on:
+      - postgres # 使用Postgres
+    networks:
+      - default
+    ports:
+      - "8080:8080"
+    environment:
+      - SEARXNG_SECRET=changeme_to_a_random_string_please  # 请修改为一个随机的密钥
+      - SEARXNG_BASE_URL=http://localhost:8080/            # 你的访问地址
+    volumes:
+      - searxng_conf:/etc/searxng
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  searxng_conf:

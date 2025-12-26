@@ -18,17 +18,18 @@ import (
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/logger"
 	dm "github.com/iWorld-y/domain_radar/app/domain_radar/pkg/model"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/search"
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/search/factory"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/storage"
-	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/tavily"
 )
 
 // Engine 核心处理引擎
 type Engine struct {
-	cfg          *config.Config
-	store        *storage.Storage
-	chatModel    model.ChatModel
-	tavilyClient *tavily.Client
-	limiter      *rate.Limiter
+	cfg       *config.Config
+	store     *storage.Storage
+	chatModel model.ChatModel
+	searcher  search.Searcher
+	limiter   *rate.Limiter
 }
 
 // NewEngine 创建引擎实例
@@ -50,15 +51,18 @@ func NewEngine(cfg *config.Config, store *storage.Storage) (*Engine, error) {
 	burst := cfg.Concurrency.QPS
 	limiter := rate.NewLimiter(limit, burst)
 
-	// 初始化 Tavily 客户端
-	tavilyClient := tavily.NewClient(cfg.TavilyAPIKey)
+	// 初始化搜索客户端
+	searcher, err := factory.NewSearcher(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("搜索客户端初始化失败: %w", err)
+	}
 
 	return &Engine{
-		cfg:          cfg,
-		store:        store,
-		chatModel:    chatModel,
-		tavilyClient: tavilyClient,
-		limiter:      limiter,
+		cfg:       cfg,
+		store:     store,
+		chatModel: chatModel,
+		searcher:  searcher,
+		limiter:   limiter,
 	}, nil
 }
 
@@ -109,7 +113,7 @@ func (e *Engine) Run(ctx context.Context, opts RunOptions) error {
 			defer wg.Done()
 			
 			// 1. 搜索
-			req := tavily.SearchRequest{
+			req := &search.Request{
 				Query:             domain,
 				Topic:             "news",
 				MaxResults:        10,
@@ -118,7 +122,7 @@ func (e *Engine) Run(ctx context.Context, opts RunOptions) error {
 				IncludeRawContent: false,
 			}
 
-			resp, err := e.tavilyClient.Search(req)
+			resp, err := e.searcher.Search(ctx, req)
 			if err != nil {
 				logger.Log.Errorf("搜索领域失败 [%s]: %v", domain, err)
 				return

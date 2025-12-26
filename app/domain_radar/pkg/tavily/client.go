@@ -2,10 +2,13 @@ package tavily
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/search"
 )
 
 const baseURL = "https://api.tavily.com/search"
@@ -22,6 +25,40 @@ func NewClient(apiKey string) *Client {
 		apiKey: apiKey,
 		client: http.DefaultClient,
 	}
+}
+
+// Ensure Client implements search.Searcher
+var _ search.Searcher = (*Client)(nil)
+
+// Search implements search.Searcher
+func (c *Client) Search(ctx context.Context, req *search.Request) (*search.Response, error) {
+	tavilyReq := SearchRequest{
+		Query:             req.Query,
+		Topic:             req.Topic,
+		MaxResults:        req.MaxResults,
+		IncludeRawContent: req.IncludeRawContent,
+		StartDate:         req.StartDate,
+		EndDate:           req.EndDate,
+	}
+
+	resp, err := c.doSearch(ctx, tavilyReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []search.Result
+	for _, r := range resp.Results {
+		results = append(results, search.Result{
+			Title:         r.Title,
+			URL:           r.URL,
+			Content:       r.Content,
+			RawContent:    r.RawContent,
+			Score:         r.Score,
+			PublishedDate: r.PublishedDate,
+		})
+	}
+
+	return &search.Response{Results: results}, nil
 }
 
 // SearchRequest Tavily 搜索请求参数
@@ -56,8 +93,8 @@ type SearchResult struct {
 	PublishedDate string  `json:"published_date"`
 }
 
-// Search 执行搜索
-func (c *Client) Search(req SearchRequest) (*SearchResponse, error) {
+// doSearch 执行搜索 (Internal)
+func (c *Client) doSearch(ctx context.Context, req SearchRequest) (*SearchResponse, error) {
 	// 设置默认值
 	if req.SearchDepth == "" {
 		req.SearchDepth = "basic"
@@ -65,17 +102,17 @@ func (c *Client) Search(req SearchRequest) (*SearchResponse, error) {
 	if req.MaxResults == 0 {
 		req.MaxResults = 5
 	}
-    // 根据用户需求，搜索新闻时 topic 最好设为 news，或者由调用方指定
-    if req.Topic == "" {
-        req.Topic = "general"
-    }
+	// 根据用户需求，搜索新闻时 topic 最好设为 news，或者由调用方指定
+	if req.Topic == "" {
+		req.Topic = "general"
+	}
 
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request failed: %w", err)
 	}
 
-	httpReq, err := http.NewRequest("POST", baseURL, bytes.NewReader(payload))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", baseURL, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("create request failed: %w", err)
 	}

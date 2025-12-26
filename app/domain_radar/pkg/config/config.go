@@ -9,7 +9,8 @@ import (
 // Config 项目配置结构体
 type Config struct {
 	LLM          LLMConfig         `yaml:"llm"`
-	TavilyAPIKey string            `yaml:"tavily_api_key"`
+	TavilyAPIKey string            `yaml:"tavily_api_key"` // Deprecated: use Search.Tavily.APIKey
+	Search       SearchConfig      `yaml:"search"`
 	UserPersona  string            `yaml:"user_persona"`
 	Domains      []string          `yaml:"domains"`
 	Log          LogConfig         `yaml:"log"`
@@ -31,6 +32,24 @@ type DBConfig struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Name     string `yaml:"name"`
+}
+
+// SearchConfig 搜索相关配置
+type SearchConfig struct {
+	Provider string        `yaml:"provider"`
+	Tavily   TavilyConfig  `yaml:"tavily"`
+	SearXNG  SearXNGConfig `yaml:"searxng"`
+}
+
+// TavilyConfig Tavily 配置
+type TavilyConfig struct {
+	APIKey string `yaml:"api_key"`
+}
+
+// SearXNGConfig SearXNG 配置
+type SearXNGConfig struct {
+	BaseURL string `yaml:"base_url"`
+	Timeout int    `yaml:"timeout"`
 }
 
 // LogConfig 日志相关配置

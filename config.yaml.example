@@ -3,7 +3,17 @@ llm:
   api_key: "your_llm_api_key"
   model: "gpt-4-turbo" # 建议使用长文本能力较强的模型
 
-tavily_api_key: "tvly-xxxxxxxxxxxx"
+# 搜索配置
+search:
+  provider: "tavily" # "tavily" 或 "searxng"
+  tavily:
+    api_key: "tvly-xxxxxxxxxxxx"
+  searxng:
+    base_url: "http://localhost:8080"
+    timeout: 10
+
+# 兼容旧配置 (不推荐)
+# tavily_api_key: "tvly-xxxxxxxxxxxx"
 
 # user_persona 已迁移至个人中心配置 (数据库)
 # user_persona: "资深全栈工程师，关注架构设计与 AI 落地"
