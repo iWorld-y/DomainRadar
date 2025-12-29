@@ -1,4 +1,4 @@
-.PHONY: all build run clean api display run-display
+.PHONY: all build run clean api display run-display test lint
 
 # 项目名称
 APP_NAME := news_agent
@@ -40,6 +40,14 @@ display:
 run-display: display
 	@echo "Running Display Service..."
 	@$(OUTPUT_DIR)/display -conf app/display/configs/config.yaml
+
+test:
+	@echo "正在运行测试..."
+	@go test ./... -cover
+
+lint:
+	@echo "正在进行静态检查..."
+	@go vet ./...
 
 clean:
 	@echo "正在清理..."

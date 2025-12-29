@@ -18,30 +18,30 @@ import (
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/storage"
 )
 
+// TaskStatus 表示后台任务的状态
 type TaskStatus struct {
 	Status   string // "pending", "running", "completed", "failed"
-	Progress int
-	Message  string
+	Progress int    // 进度 (0-100)
+	Message  string // 状态信息或错误详情
 }
 
+// DisplayService 实现了展示服务的 API 接口
 type DisplayService struct {
 	v1.UnimplementedDisplayServer
 	ucUser   *biz.UserUseCase
 	ucReport *biz.ReportUseCase
 	log      *log.Helper
 
-	// Task Management
+	// 任务管理相关
 	tasks  sync.Map // map[string]*TaskStatus
 	engine *engine.Engine
 }
 
+// NewDisplayService 创建展示服务实例
 func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, logger log.Logger, c *conf.Data) *DisplayService {
-	// Initialize Engine (using config from Data config if possible, or load separately)
-	// 这里为了简化，假设我们能从某个地方加载到 domain_radar 的配置
-	// 实际上更好的做法是将 domain_radar 的配置集成到 display 的配置中
-	// 或者直接硬编码路径加载
-
-	drCfg, err := config.LoadConfig("configs/config.yaml") // 假设路径
+	// 初始化引擎（尝试从配置文件加载 domain_radar 的配置）
+	// 建议：后续可考虑将 domain_radar 配置集成到 display 配置中以简化管理
+	drCfg, err := config.LoadConfig("configs/config.yaml")
 	if err != nil {
 		log.NewHelper(logger).Errorf("Failed to load domain_radar config: %v", err)
 	}
@@ -50,18 +50,19 @@ func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, log
 	var eng *engine.Engine
 
 	if drCfg != nil {
-		// Initialize domain_radar logger to avoid nil pointer dereference in engine
-		if err := drLogger.InitLogger(drCfg.Log.Level, drCfg.Log.File); err != nil {
+		// 初始化日志，防止引擎内部出现空指针
+		if err = drLogger.InitLogger(drCfg.Log.Level, drCfg.Log.File); err != nil {
 			log.NewHelper(logger).Errorf("Failed to init domain_radar logger: %v", err)
-			// Fallback
-			drLogger.InitLogger("info", "")
+			_ = drLogger.InitLogger("info", "") // 降级处理
 		}
 
+		// 初始化存储层
 		store, err = storage.NewStorage(drCfg.DB)
 		if err != nil {
 			log.NewHelper(logger).Errorf("Failed to init storage for engine: %v", err)
 		}
 
+		// 初始化核心引擎
 		eng, err = engine.NewEngine(drCfg, store)
 		if err != nil {
 			log.NewHelper(logger).Errorf("Failed to init engine: %v", err)
@@ -76,6 +77,7 @@ func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, log
 	}
 }
 
+// Register 用户注册
 func (s *DisplayService) Register(ctx context.Context, req *v1.RegisterReq) (*v1.RegisterReply, error) {
 	err := s.ucUser.Register(ctx, req.Username, req.Password)
 	if err != nil {
@@ -84,6 +86,7 @@ func (s *DisplayService) Register(ctx context.Context, req *v1.RegisterReq) (*v1
 	return &v1.RegisterReply{Success: true, Message: "success"}, nil
 }
 
+// Login 用户登录并返回 JWT 令牌
 func (s *DisplayService) Login(ctx context.Context, req *v1.LoginReq) (*v1.LoginReply, error) {
 	token, err := s.ucUser.Login(ctx, req.Username, req.Password)
 	if err != nil {
@@ -92,6 +95,7 @@ func (s *DisplayService) Login(ctx context.Context, req *v1.LoginReq) (*v1.Login
 	return &v1.LoginReply{Token: token, Username: req.Username}, nil
 }
 
+// ListReports 分页获取报告列表摘要
 func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq) (*v1.ListReportsReply, error) {
 	page := int(req.Page)
 	if page < 1 {
@@ -124,7 +128,9 @@ func (s *DisplayService) ListReports(ctx context.Context, req *v1.ListReportsReq
 	}, nil
 }
 
+// GetReport 获取指定 ID 的报告详情
 func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*v1.GetReportReply, error) {
+	// 从 JWT 上下文中提取用户信息
 	claims, ok := jwt.FromContext(ctx)
 	if !ok {
 		return nil, errors.Unauthorized("UNAUTHORIZED", "missing jwt token")
@@ -148,6 +154,7 @@ func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*
 		return nil, err
 	}
 
+	// 转换领域报告详情
 	domains := make([]*v1.DomainReport, 0, len(r.Domains))
 	for _, d := range r.Domains {
 		articles := make([]*v1.Article, 0, len(d.Articles))
@@ -176,6 +183,7 @@ func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*
 		Domains: domains,
 	}
 
+	// 如果存在深度分析，则填充深度分析数据
 	if r.DeepAnalysis != nil {
 		reply.DeepAnalysis = &v1.DeepAnalysis{
 			MacroTrends:   r.DeepAnalysis.MacroTrends,
@@ -188,6 +196,7 @@ func (s *DisplayService) GetReport(ctx context.Context, req *v1.GetReportReq) (*
 	return reply, nil
 }
 
+// GetProfile 获取当前登录用户的个人资料
 func (s *DisplayService) GetProfile(ctx context.Context, req *v1.GetProfileReq) (*v1.GetProfileReply, error) {
 	claims, ok := jwt.FromContext(ctx)
 	if !ok {
@@ -209,6 +218,7 @@ func (s *DisplayService) GetProfile(ctx context.Context, req *v1.GetProfileReq) 
 	return &v1.GetProfileReply{Username: u.Username, Persona: u.Persona, Domains: u.Domains}, nil
 }
 
+// UpdateProfile 更新用户个人资料（如关注领域、用户画像）
 func (s *DisplayService) UpdateProfile(ctx context.Context, req *v1.UpdateProfileReq) (*v1.UpdateProfileReply, error) {
 	claims, ok := jwt.FromContext(ctx)
 	if !ok {
@@ -232,6 +242,7 @@ func (s *DisplayService) UpdateProfile(ctx context.Context, req *v1.UpdateProfil
 	return &v1.UpdateProfileReply{Success: true}, nil
 }
 
+// TriggerReport 异步触发一次领域雷达报告生成任务
 func (s *DisplayService) TriggerReport(ctx context.Context, req *v1.TriggerReportReq) (*v1.TriggerReportReply, error) {
 	if s.engine == nil {
 		return nil, errors.InternalServer("ENGINE_NOT_INIT", "domain radar engine not initialized")
@@ -264,6 +275,7 @@ func (s *DisplayService) TriggerReport(ctx context.Context, req *v1.TriggerRepor
 	taskID := uuid.New().String()
 	s.tasks.Store(taskID, &TaskStatus{Status: "pending", Progress: 0, Message: "Initializing..."})
 
+	// 在后台协程中执行耗时的分析任务
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -274,6 +286,7 @@ func (s *DisplayService) TriggerReport(ctx context.Context, req *v1.TriggerRepor
 
 		s.tasks.Store(taskID, &TaskStatus{Status: "running", Progress: 5, Message: "Starting..."})
 
+		// 调用领域雷达引擎开始执行
 		err := s.engine.Run(context.Background(), engine.RunOptions{
 			UserID:  u.ID,
 			Domains: u.Domains,
@@ -293,6 +306,7 @@ func (s *DisplayService) TriggerReport(ctx context.Context, req *v1.TriggerRepor
 	return &v1.TriggerReportReply{TaskId: taskID, Message: "Task started"}, nil
 }
 
+// GetTaskStatus 查询后台任务的执行进度和状态
 func (s *DisplayService) GetTaskStatus(ctx context.Context, req *v1.GetTaskStatusReq) (*v1.GetTaskStatusReply, error) {
 	val, ok := s.tasks.Load(req.TaskId)
 	if !ok {
