@@ -57,20 +57,20 @@ func main() {
 	if cfg.DB.Host != "" {
 		s, err := storage.NewStorage(cfg.DB)
 		if err != nil {
-			logger.Log.Errorf("无法连接数据库: %v. 将仅生成 HTML 文件。", err)
-		} else {
-			store = s
-			defer store.Close()
-			logger.Log.Info("已成功连接到数据库")
+			logger.Log.Fatalf("无法连接数据库: %v.", err)
+			return
+		}
+		store = s
+		defer store.Close()
+		logger.Log.Info("已成功连接到数据库")
 
-			// 创建本次运行记录
-			rid, err := store.CreateRun()
-			if err != nil {
-				logger.Log.Errorf("无法创建运行记录: %v", err)
-			} else {
-				runID = rid
-				logger.Log.Infof("创建运行记录成功, RunID: %d", runID)
-			}
+		// 创建本次运行记录
+		rid, err := store.CreateRun()
+		if err != nil {
+			logger.Log.Errorf("无法创建运行记录: %v", err)
+		} else {
+			runID = rid
+			logger.Log.Infof("创建运行记录成功, RunID: %d", runID)
 		}
 	} else {
 		logger.Log.Info("未配置数据库信息，跳过数据库连接")
