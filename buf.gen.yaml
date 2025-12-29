@@ -3,6 +3,10 @@ managed:
   enabled: true
   go_package_prefix:
     default: github.com/iWorld-y/domain_radar/api
+  override:
+    GO_PACKAGE:
+      google/api/annotations.proto: google.golang.org/genproto/googleapis/api/annotations
+      google/api/http.proto: google.golang.org/genproto/googleapis/api/annotations
 plugins:
   - name: go
     out: api

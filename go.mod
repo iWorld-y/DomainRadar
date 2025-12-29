@@ -11,10 +11,12 @@ require (
 	github.com/go-shiori/go-readability v0.0.0-20250217085726-9f5bf5ca7612
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
+	github.com/google/wire v0.7.0
 	github.com/lib/pq v1.10.9
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/crypto v0.46.0
 	golang.org/x/time v0.14.0
+	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
@@ -46,8 +48,6 @@ require (
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/subcommands v1.2.0 // indirect
-	github.com/google/wire v0.7.0 // indirect
 	github.com/goph/emperror v0.17.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/hashicorp/hcl/v2 v2.18.1 // indirect
@@ -78,7 +78,5 @@ require (
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
-	golang.org/x/tools v0.39.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 )
