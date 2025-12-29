@@ -2,14 +2,10 @@ package main
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -29,17 +25,6 @@ import (
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/search/factory"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/storage"
 )
-
-//go:embed resource/index.html
-var templateFS embed.FS
-
-// HTMLData 用于模板渲染的数据
-type HTMLData struct {
-	Date          string
-	Count         int // 总阅读文章数
-	DomainReports []dm.DomainReport
-	DeepAnalysis  *dm.DeepAnalysisResult
-}
 
 func main() {
 	// 0. 定义命令行参数
@@ -286,23 +271,11 @@ func main() {
 				}
 			}
 
-			// Keep the last one for HTML generation (or first one)
+			// 记录第一个生成的深度解读结果，用于更新运行记录的标题
 			if deepAnalysis == nil {
 				deepAnalysis = analysis
 			}
 		}
-	}
-
-	// 9. 生成 HTML
-	data := HTMLData{
-		Date:          time.Now().Format("2006-01-02"),
-		Count:         totalArticles,
-		DomainReports: domainReports,
-		DeepAnalysis:  deepAnalysis,
-	}
-
-	if err := generateHTML(data); err != nil {
-		logger.Log.Fatalf("生成 HTML 失败: %v", err)
 	}
 
 	logger.Log.Info("✅ 领域雷达早报生成完毕")
@@ -443,39 +416,4 @@ Instructions
 		return &result, nil
 	}
 	return nil, fmt.Errorf("failed after retries: %v", lastErr)
-}
-
-// generateHTML 渲染模板
-func generateHTML(data HTMLData) error {
-	t, err := template.ParseFS(templateFS, "resource/index.html")
-	if err != nil {
-		return fmt.Errorf("解析模板失败: %w", err)
-	}
-
-	outputPath := "index.html"
-	// 如果在根目录运行且 output 目录存在，则输出到 output 目录
-	if info, err := os.Stat("output"); err == nil && info.IsDir() {
-		outputPath = filepath.Join("output", "index.html")
-	}
-
-	// 确保目标目录存在
-	dir := filepath.Dir(outputPath)
-	if dir != "." {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("创建目录失败 [%s]: %w", dir, err)
-		}
-	}
-
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("创建文件失败 [%s]: %w", outputPath, err)
-	}
-	defer f.Close()
-
-	if err := t.Execute(f, data); err != nil {
-		return fmt.Errorf("渲染模板失败: %w", err)
-	}
-
-	logger.Log.Infof("报告已保存至: %s", outputPath)
-	return nil
 }

@@ -37,6 +37,5 @@ lint:
 clean:
 	@echo "正在清理..."
 	@rm -rf $(OUTPUT_DIR)
-	@rm -f index.html
 	@rm -f app.log
 	@echo "清理完成"
