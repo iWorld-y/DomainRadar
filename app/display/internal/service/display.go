@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	v1 "github.com/iWorld-y/domain_radar/api/proto/display/v1"
 	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
-	biz "github.com/iWorld-y/domain_radar/app/display/internal/usecase"
+	"github.com/iWorld-y/domain_radar/app/display/internal/usecase"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/engine"
 	drLogger "github.com/iWorld-y/domain_radar/app/domain_radar/pkg/logger"
@@ -28,8 +28,8 @@ type TaskStatus struct {
 // DisplayService 实现了展示服务的 API 接口
 type DisplayService struct {
 	v1.UnimplementedDisplayServer
-	ucUser   *biz.UserUseCase
-	ucReport *biz.ReportUseCase
+	ucUser   *usecase.UserUseCase
+	ucReport *usecase.ReportUseCase
 	log      *log.Helper
 
 	// 任务管理相关
@@ -38,7 +38,7 @@ type DisplayService struct {
 }
 
 // NewDisplayService 创建展示服务实例
-func NewDisplayService(ucUser *biz.UserUseCase, ucReport *biz.ReportUseCase, logger log.Logger, c *conf.Data) *DisplayService {
+func NewDisplayService(ucUser *usecase.UserUseCase, ucReport *usecase.ReportUseCase, logger log.Logger, c *conf.Data) *DisplayService {
 	// 初始化引擎（尝试从配置文件加载 domain_radar 的配置）
 	// 建议：后续可考虑将 domain_radar 配置集成到 display 配置中以简化管理
 	drCfg, err := config.LoadConfig("configs/config.yaml")
