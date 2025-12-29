@@ -4,15 +4,10 @@ import (
 	"flag"
 	"os"
 
-	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
-	"github.com/iWorld-y/domain_radar/app/display/internal/data"
-	"github.com/iWorld-y/domain_radar/app/display/internal/server"
-	"github.com/iWorld-y/domain_radar/app/display/internal/service"
-	"github.com/iWorld-y/domain_radar/app/display/internal/usecase"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -61,35 +56,11 @@ func main() {
 		panic(err)
 	}
 
-	// 手动进行依赖注入 (未来可考虑使用 google/wire)
-	d, cleanup, err := data.NewData(bc.Data, logger)
+	app, cleanup, err := initApp(bc.Server, bc.Data, bc.Auth, logger)
 	if err != nil {
 		panic(err)
 	}
 	defer cleanup()
-
-	userRepo := data.NewUserRepo(d, logger)
-	reportRepo := data.NewReportRepo(d, logger)
-
-	userUseCase := usecase.NewUserUseCase(userRepo, bc.Auth, logger)
-	reportUseCase := usecase.NewReportUseCase(reportRepo, logger)
-
-	displayService := service.NewDisplayService(userUseCase, reportUseCase, logger, bc.Data)
-
-	// 初始化 HTTP 服务器
-	httpSrv := server.NewHTTPServer(bc.Server, bc.Auth, displayService, logger)
-
-	// 创建并运行 Kratos 应用
-	app := kratos.New(
-		kratos.ID(id),
-		kratos.Name(Name),
-		kratos.Version(Version),
-		kratos.Metadata(map[string]string{}),
-		kratos.Logger(logger),
-		kratos.Server(
-			httpSrv,
-		),
-	)
 
 	if err := app.Run(); err != nil {
 		panic(err)

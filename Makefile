@@ -1,4 +1,4 @@
-.PHONY: all build run clean api display run-display test lint
+.PHONY: all build run clean api display run-display test lint wire
 
 # 项目名称
 APP_NAME := news_agent
@@ -31,7 +31,12 @@ api:
 	@buf generate
 	@echo "API 代码生成完成"
 
-display:
+wire:
+	@echo "正在生成依赖注入代码..."
+	@wire ./app/display/cmd/server
+	@echo "依赖注入代码生成完成"
+
+display: wire
 	@echo "Building Display Service..."
 	@mkdir -p $(OUTPUT_DIR)
 	@go build -o $(OUTPUT_DIR)/display $(DISPLAY_SRC)
