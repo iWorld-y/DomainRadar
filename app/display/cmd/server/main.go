@@ -8,11 +8,11 @@ import (
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
 	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
 	"github.com/iWorld-y/domain_radar/app/display/internal/data"
 	"github.com/iWorld-y/domain_radar/app/display/internal/server"
 	"github.com/iWorld-y/domain_radar/app/display/internal/service"
+	"github.com/iWorld-y/domain_radar/app/display/internal/usecase"
 )
 
 // go build -ldflags "-X main.Version=x.y.z"
@@ -67,8 +67,8 @@ func main() {
 	userRepo := data.NewUserRepo(d, logger)
 	reportRepo := data.NewReportRepo(d, logger)
 
-	userUseCase := biz.NewUserUseCase(userRepo, bc.Auth, logger)
-	reportUseCase := biz.NewReportUseCase(reportRepo, logger)
+	userUseCase := usecase.NewUserUseCase(userRepo, bc.Auth, logger)
+	reportUseCase := usecase.NewReportUseCase(reportRepo, logger)
 
 	displayService := service.NewDisplayService(userUseCase, reportUseCase, logger, bc.Data)
 

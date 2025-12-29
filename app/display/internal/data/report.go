@@ -7,11 +7,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
 	"github.com/iWorld-y/domain_radar/app/common/ent"
 	"github.com/iWorld-y/domain_radar/app/common/ent/deepanalysisresult"
 	"github.com/iWorld-y/domain_radar/app/common/ent/domainreport"
 	"github.com/iWorld-y/domain_radar/app/common/ent/reportrun"
+	"github.com/iWorld-y/domain_radar/app/display/internal/domain"
+	"github.com/iWorld-y/domain_radar/app/display/internal/repo"
 )
 
 type reportRepo struct {
@@ -19,14 +20,14 @@ type reportRepo struct {
 	log  *log.Helper
 }
 
-func NewReportRepo(data *Data, logger log.Logger) biz.ReportRepo {
+func NewReportRepo(data *Data, logger log.Logger) repo.ReportRepo {
 	return &reportRepo{
 		data: data,
 		log:  log.NewHelper(logger),
 	}
 }
 
-func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*biz.ReportSummary, int, error) {
+func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*domain.ReportSummary, int, error) {
 	offset := (page - 1) * pageSize
 
 	var results []struct {
@@ -60,9 +61,9 @@ func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*bi
 		return nil, 0, err
 	}
 
-	var summaries []*biz.ReportSummary
+	var summaries []*domain.ReportSummary
 	for _, res := range results {
-		summaries = append(summaries, &biz.ReportSummary{
+		summaries = append(summaries, &domain.ReportSummary{
 			ID:           res.ID,
 			Title:        res.Title,
 			Date:         res.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -79,7 +80,7 @@ func (r *reportRepo) ListReports(ctx context.Context, page, pageSize int) ([]*bi
 	return summaries, total, nil
 }
 
-func (r *reportRepo) GetReportByID(ctx context.Context, id int, userID int) (*biz.GroupedReport, error) {
+func (r *reportRepo) GetReportByID(ctx context.Context, id int, userID int) (*domain.GroupedReport, error) {
 	run, err := r.data.db.ReportRun.Query().
 		Where(reportrun.ID(id)).
 		WithDeepAnalysisResults(func(q *ent.DeepAnalysisResultQuery) {
@@ -98,7 +99,7 @@ func (r *reportRepo) GetReportByID(ctx context.Context, id int, userID int) (*bi
 		return nil, err
 	}
 
-	grouped := &biz.GroupedReport{
+	grouped := &domain.GroupedReport{
 		ID:   run.ID,
 		Date: run.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
@@ -106,7 +107,7 @@ func (r *reportRepo) GetReportByID(ctx context.Context, id int, userID int) (*bi
 	// Map DeepAnalysis
 	if len(run.Edges.DeepAnalysisResults) > 0 {
 		da := run.Edges.DeepAnalysisResults[0]
-		grouped.DeepAnalysis = &biz.DeepAnalysisResult{
+		grouped.DeepAnalysis = &domain.DeepAnalysisResult{
 			MacroTrends:   da.MacroTrends,
 			Opportunities: da.Opportunities,
 			Risks:         da.Risks,
@@ -118,7 +119,7 @@ func (r *reportRepo) GetReportByID(ctx context.Context, id int, userID int) (*bi
 
 	// Map DomainReports
 	for _, dr := range run.Edges.DomainReports {
-		rp := &biz.Report{
+		rp := &domain.Report{
 			ID:         dr.ID,
 			DomainName: dr.DomainName,
 			Overview:   dr.Overview,
@@ -126,7 +127,7 @@ func (r *reportRepo) GetReportByID(ctx context.Context, id int, userID int) (*bi
 			Score:      dr.Score,
 		}
 		for _, art := range dr.Edges.Articles {
-			rp.Articles = append(rp.Articles, biz.Article{
+			rp.Articles = append(rp.Articles, domain.Article{
 				Title:   art.Title,
 				Link:    art.Link,
 				Source:  art.Source,

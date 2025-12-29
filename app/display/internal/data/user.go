@@ -7,7 +7,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/iWorld-y/domain_radar/app/common/ent"
 	"github.com/iWorld-y/domain_radar/app/common/ent/user"
-	"github.com/iWorld-y/domain_radar/app/display/internal/biz"
+	"github.com/iWorld-y/domain_radar/app/display/internal/usecase"
 )
 
 type userRepo struct {
@@ -15,14 +15,14 @@ type userRepo struct {
 	log  *log.Helper
 }
 
-func NewUserRepo(data *Data, logger log.Logger) biz.UserRepo {
+func NewUserRepo(data *Data, logger log.Logger) usecase.UserRepo {
 	return &userRepo{
 		data: data,
 		log:  log.NewHelper(logger),
 	}
 }
 
-func (r *userRepo) CreateUser(ctx context.Context, u *biz.User) error {
+func (r *userRepo) CreateUser(ctx context.Context, u *usecase.User) error {
 	_, err := r.data.db.User.Create().
 		SetUsername(u.Username).
 		SetPasswordHash(u.PasswordHash).
@@ -30,7 +30,7 @@ func (r *userRepo) CreateUser(ctx context.Context, u *biz.User) error {
 	return err
 }
 
-func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*biz.User, error) {
+func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*usecase.User, error) {
 	u, err := r.data.db.User.Query().
 		Where(user.Username(username)).
 		Only(ctx)
@@ -44,7 +44,7 @@ func (r *userRepo) GetUserByUsername(ctx context.Context, username string) (*biz
 	if domains == nil {
 		domains = []string{}
 	}
-	return &biz.User{
+	return &usecase.User{
 		ID:           u.ID,
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
