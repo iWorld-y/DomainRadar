@@ -1,30 +1,10 @@
-.PHONY: all build run clean api display run-display test lint wire
-
-# 项目名称
-APP_NAME := news_agent
+.PHONY: clean api build run test lint wire
 
 # 输出目录
 OUTPUT_DIR := output
 
 # Go 源文件入口
-SRC := ./app/domain_radar/cmd/domain_radar
 DISPLAY_SRC := ./app/display/cmd/server
-
-all: build display
-
-build:
-	@echo "正在编译项目..."
-	@mkdir -p $(OUTPUT_DIR)
-	@go build -o $(OUTPUT_DIR)/$(APP_NAME) $(SRC)
-	@if [ -d "configs" ]; then \
-		mkdir -p $(OUTPUT_DIR)/configs; \
-		cp configs/config.yaml $(OUTPUT_DIR)/configs/; \
-	fi
-	@echo "编译完成，输出目录: $(OUTPUT_DIR)"
-
-run: build
-	@echo "正在运行项目..."
-	@./$(OUTPUT_DIR)/$(APP_NAME) -config configs/config.yaml
 
 api:
 	@echo "正在生成 API 代码..."
@@ -36,13 +16,13 @@ wire:
 	@wire ./app/display/cmd/server
 	@echo "依赖注入代码生成完成"
 
-display: wire
+build:
 	@echo "Building Display Service..."
 	@mkdir -p $(OUTPUT_DIR)
 	@go build -o $(OUTPUT_DIR)/display $(DISPLAY_SRC)
 	@echo "Build complete: $(OUTPUT_DIR)/display"
 
-run-display: display
+run: build
 	@echo "Running Display Service..."
 	@$(OUTPUT_DIR)/display -conf app/display/configs/config.yaml
 
