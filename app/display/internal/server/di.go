@@ -11,6 +11,7 @@ import (
 var ProviderSet = wire.NewSet(
 	// Server providers
 	NewHTTPServer,
+	NewRadarEngine,
 
 	// Data providers
 	data.NewData,

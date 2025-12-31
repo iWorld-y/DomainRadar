@@ -10,12 +10,8 @@ import (
 	jwtv5 "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	v1 "github.com/iWorld-y/domain_radar/api/proto/display/v1"
-	"github.com/iWorld-y/domain_radar/app/display/internal/conf"
 	"github.com/iWorld-y/domain_radar/app/display/internal/usecase"
-	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/config"
 	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/engine"
-	drLogger "github.com/iWorld-y/domain_radar/app/domain_radar/pkg/logger"
-	"github.com/iWorld-y/domain_radar/app/domain_radar/pkg/storage"
 )
 
 // TaskStatus 表示后台任务的状态
@@ -38,37 +34,12 @@ type DisplayService struct {
 }
 
 // NewDisplayService 创建展示服务实例
-func NewDisplayService(ucUser *usecase.UserUseCase, ucReport *usecase.ReportUseCase, logger log.Logger, c *conf.Data) *DisplayService {
-	// 初始化引擎（尝试从配置文件加载 domain_radar 的配置）
-	// 建议：后续可考虑将 domain_radar 配置集成到 display 配置中以简化管理
-	drCfg, err := config.LoadConfig("configs/config.yaml")
-	if err != nil {
-		log.NewHelper(logger).Errorf("Failed to load domain_radar config: %v", err)
-	}
-
-	var store *storage.Storage
-	var eng *engine.Engine
-
-	if drCfg != nil {
-		// 初始化日志，防止引擎内部出现空指针
-		if err = drLogger.InitLogger(drCfg.Log.Level, drCfg.Log.File); err != nil {
-			log.NewHelper(logger).Errorf("Failed to init domain_radar logger: %v", err)
-			_ = drLogger.InitLogger("info", "") // 降级处理
-		}
-
-		// 初始化存储层
-		store, err = storage.NewStorage(drCfg.DB)
-		if err != nil {
-			log.NewHelper(logger).Errorf("Failed to init storage for engine: %v", err)
-		}
-
-		// 初始化核心引擎
-		eng, err = engine.NewEngine(drCfg, store)
-		if err != nil {
-			log.NewHelper(logger).Errorf("Failed to init engine: %v", err)
-		}
-	}
-
+func NewDisplayService(
+	ucUser *usecase.UserUseCase,
+	ucReport *usecase.ReportUseCase,
+	logger log.Logger,
+	eng *engine.Engine,
+) *DisplayService {
 	return &DisplayService{
 		ucUser:   ucUser,
 		ucReport: ucReport,
